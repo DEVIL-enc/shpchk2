@@ -23,7 +23,7 @@ bot = TelegramClient('checker_bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 active_sessions = {}
 
-# إيموجي بوت رقم 2 زي ما هي عشان تفضل متوافقة مع وظيفة الاستبدال بتاعته
+
 PREMIUM_EMOJI_IDS = {
     "✅": "5444987348334965906", "❌": "5447647474984449520", "🔥": "5116414868357907335",
     "⚡": "5219943216781995020", "💳": "5447453226498552490", "💠": "5870498447068502918",
@@ -278,20 +278,22 @@ async def check_card_with_retry(card, sites, proxies, max_retries=2):
 
 async def send_realtime_hit(user_id, result, hit_type, username):
     emoji = "✅" if hit_type == "Charged" else "🔥"
-    status_text = "𝐂𝐡𝐚𝐫𝐠𝐞𝐝" if hit_type == "Charged" else "𝐋𝐢𝐯𝐞"
+    status_text = "CHARGED" if hit_type == "Charged" else "APPROVED"
 
     brand, bin_type, level, bank, country, flag = await get_bin_info(result['card'].split('|')[0])
 
-    message = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐇𝐢𝐭 𝐅𝐨𝐮𝐧𝐝!</b>
-<blockquote>{emoji} Status: {status_text}</blockquote>
-<blockquote>💳 Card: <code>{result['card']}</code></blockquote>
-<blockquote>📝 Response: {result['message'][:150]}</blockquote>
-<blockquote>🌐 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 🔥 {result.get('gateway', 'Unknown')} | 💰 {result.get('price', '-')}</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>
+    message = f"""{status_text}
 
-⚡ <b>Bot By: <a href="tg://user?id=1707478010">ㅤㅤ𝐃𝟑𝐯𝟏𝐥_𝐯𝐢𝐩</a></b>"""
+💳 CC <code>{result['card']}</code>
+
+🛒 Gateway {result.get('gateway', 'Unknown')}
+📝 Response {result['message'][:150]}
+💸 Price {result.get('price', '-')}
+
+
+🆔 BIN Info {brand} - {bin_type} - {level}
+🏦 Bank {bank}
+🥰 Country {country} {flag}"""
 
     try:
         await bot.send_message(user_id, premium_emoji(message), parse_mode='html')
@@ -304,16 +306,12 @@ async def update_progress(user_id, message_id, results, current_attempt_count):
     minutes = (elapsed % 3600) // 60
     seconds = elapsed % 60
 
-    gateway = results['last_gateway']
-
-    progress_text = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬</b>
-<blockquote>💳 Total: {results['total']} | ✅ Charged: {len(results['charged'])} | 🔥 Live: {len(results['approved'])} | ❌ Dead: {len(results['dead'])}</blockquote>
-<blockquote>📊 Checked: {current_attempt_count}/{results['total']}</blockquote>
-<blockquote>🌐 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 🔥 {gateway}</blockquote>
-<blockquote>⏱️ Time: {hours}h {minutes}m {seconds}s</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>"""
+    progress_text = f""" 💳  Card: <code>{results.get('last_card', 'None')}</code>
+    
+💰 {results.get('last_price', '-')}
+    
+📝 {results.get('last_response', 'Waiting...')[:30]}
+    """
 
     buttons = [
         [Button.inline(f" CHARGED {len(results['charged'])}", b"none", style="success")],
@@ -336,54 +334,48 @@ async def send_final_results(user_id, results):
     hits_text = ""
     if results['charged']:
         for r in results['charged'][:5]:
-            hits_text += f"✅ <code>{r['card']}</code>\n"
+            hits_text += f" <code>{r['card']}</code>\n"
     if results['approved']:
         for r in results['approved'][:5]:
-            hits_text += f"🔥 <code>{r['card']}</code>\n"
+            hits_text += f" <code>{r['card']}</code>\n"
 
     if not hits_text:
         hits_text = "No hits found"
 
     gateway = results['charged'][0]['gateway'] if results['charged'] else (results['approved'][0]['gateway'] if results['approved'] else 'Unknown')
 
-    summary = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐑𝐞𝐬𝐮𝐥𝐭𝐬</b>
-<blockquote>💳 Total: {results['total']} | ✅ Charged: {len(results['charged'])} | 🔥 Live: {len(results['approved'])} | ❌ Dead: {len(results['dead'])}</blockquote>
-<blockquote>🌐 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 🔥 {gateway}</blockquote>
-<blockquote>⏱️ Time: {hours}h {minutes}m {seconds}s</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>🎯💠 𝐇𝐢𝐭𝐬</b>
-<blockquote>{hits_text}</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>
+    summary = f"""✅ Check Complete! ✅
 
-🤖 <b>Bot By: <a href="tg://user?id=1707478010">ㅤㅤ𝐃𝟑𝐯𝟏𝐥_𝐯𝐢𝐩</a></b>"""
+📊 Results:
+   ┣ ✅ Charged: {len(results['charged'])}
+   ┣ 🔥 Approved: {len(results['approved'])}
+   ┣ ❌ Declined: {len(results['dead'])}
+   ┗ 📊 Total: {results['total']}
+
+Hits:
+{hits_text}
+
+💡 Made by @AFUONA_V"""
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"shopiii_{user_id}_{timestamp}.txt"
+    filename = f"afuonax{timestamp}.txt"
 
     async with aiofiles.open(filename, 'w') as f:
-        await f.write("=" * 70 + "\n")
-        await f.write("⚡💳 CC CHECKER RESULTS 💳⚡\n")
-        await f.write("Format: CC | Gateway | Price | Message | Site\n")
-        await f.write("=" * 70 + "\n\n")
+        await f.write("CC CHECKER RESULTS\n")
         
-        await f.write(f"✅ CHARGED ({len(results['charged'])}):\n")
-        await f.write("-" * 70 + "\n")
+        await f.write(f"CHARGED ({len(results['charged'])}):\n")
         for r in results['charged']:
-            await f.write(f"{r['card']} | {r.get('gateway', 'Unknown')} | {r.get('price', '-')} | {r['message'][:100]} | {r.get('site', 'Unknown')}\n")
+            await f.write(f"{r['card']} | {r.get('gateway', 'Unknown')} | {r.get('price', '-')} | {r['message'][:100]}\n")
         await f.write("\n")
         
-        await f.write(f"🔥 APPROVED ({len(results['approved'])}):\n")
-        await f.write("-" * 70 + "\n")
+        await f.write(f"APPROVED ({len(results['approved'])}):\n")
         for r in results['approved']:
-            await f.write(f"{r['card']} | {r.get('gateway', 'Unknown')} | {r.get('price', '-')} | {r['message'][:100]} | {r.get('site', 'Unknown')}\n")
+            await f.write(f"{r['card']} | {r.get('gateway', 'Unknown')} | {r.get('price', '-')} | {r['message'][:100]}\n")
         await f.write("\n")
         
-        await f.write(f"❌ DEAD ({len(results['dead'])}):\n")
-        await f.write("-" * 70 + "\n")
+        await f.write(f"DECLINED ({len(results['dead'])}):\n")
         for r in results['dead']:
-            await f.write(f"{r['card']} | {r.get('gateway', 'Unknown')} | {r.get('price', '-')} | {r['message'][:100]} | {r.get('site', 'Unknown')}\n")
+            await f.write(f"{r['card']} | {r.get('gateway', 'Unknown')} | {r.get('price', '-')} | {r['message'][:100]}\n")
 
     await bot.send_message(user_id, premium_emoji(summary), file=filename, parse_mode='html')
 
@@ -461,25 +453,20 @@ async def start(event):
     user_id = event.sender_id
     is_prem = is_premium(user_id)
     
-    welcome_text = """<b>⚡💳 Welcome to DEVIL CHK ! 💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐂𝐂 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /cc card|mm|yy|cvv - Check single CC
-• /chk - Reply to .txt file to check cards</blockquote>
-<b>⚡💠 𝐒𝐢𝐭𝐞 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /site - Check all sites & remove dead
-• /addsites - Reply to .txt to upload sites
-• /rm url - Remove a specific site</blockquote>
-<b>⚡💠 𝐏𝐫𝐨𝐱𝐲 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /proxy - Check all proxies & remove dead
-• /addproxy - Add proxies (one per line)
-• /chkproxy proxy - Check single proxy
-• /rmproxy proxy - Remove single proxy
-• /rmproxyindex 1,2,3 - Remove by index
-• /clearproxy - Remove all proxies
-• /getproxy - Get all proxies</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚠️ Only premium users can use this bot.</b>"""
+    try:
+        sender = await event.get_sender()
+        username = sender.username if sender.username else "User"
+    except:
+        username = "User"
+    
+    welcome_text = f"""👋 Hey @{username}!
+
+🎁 How to use:
+   🦉 Add proxy: <code>/addproxy</code>
+   🦉 Add sites: <code>/site</code>
+   🦉 Check CC: <code>/cc card|mm|yy|cvv</code>
+
+💡 Made by @AFUONA_V"""
     
     buttons = get_main_menu_keyboard(user_id)
     
@@ -487,25 +474,24 @@ async def start(event):
 
 @bot.on(events.CallbackQuery(data=b"show_cmds"))
 async def show_commands_callback(event):
-    commands_text = """<b>⚡💳 Welcome to DEVIL CHK ! 💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐂𝐂 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /cc card|mm|yy|cvv - Check single CC
-• /chk - Reply to .txt file to check cards</blockquote>
-<b>⚡💠 𝐒𝐢𝐭𝐞 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /site - Check all sites & remove dead
-• /addsites - Reply to .txt to upload sites
-• /rm url - Remove a specific site</blockquote>
-<b>⚡💠 𝐏𝐫𝐨𝐱𝐲 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /proxy - Check all proxies & remove dead
-• /addproxy - Add proxies (one per line)
-• /chkproxy proxy - Check single proxy
-• /rmproxy proxy - Remove single proxy
-• /rmproxyindex 1,2,3 - Remove by index
-• /clearproxy - Remove all proxies
-• /getproxy - Get all proxies</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚠️ Only premium users can use this bot.</b>"""
+    commands_text = """📋 User Commands
+
+🛒 Shopify
+├─ <code>/cc cc|mm|yy|cvv</code> → Check single card
+└─ <code>/chk</code> → Mass check from .txt file
+
+🔧 Site Management
+├─ <code>/site</code> → Check & remove dead sites
+└─ <code>/rm url</code> → Remove a specific site
+
+🔌 Proxy Management
+├─ <code>/proxy</code> → Check & remove dead proxies
+├─ <code>/addproxy</code> → Add proxies
+├─ <code>/chkproxy proxy</code> → Check single proxy
+├─ <code>/rmproxy proxy</code> → Remove single proxy
+├─ <code>/rmproxyindex 1,2,3</code> → Remove by index
+├─ <code>/clearproxy</code> → Remove all proxies
+└─ <code>/getproxy</code> → Get all proxies"""
     
     buttons = [[Button.inline(" Back", b"main_menu", style="danger")]]
     
@@ -519,15 +505,19 @@ async def admin_panel_callback(event):
         await event.answer("❌ Access Denied. Admin only.", alert=True)
         return
     
-    admin_text = """<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚𝐧𝐞𝐥</b>
-<blockquote>• /addpremium id - Add premium user
-• /removepremium id - Remove premium user
-• /listpremium - List premium users
-• /addsites - Reply to .txt to add sites
-• /stats - Show bot statistics</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>"""
+    admin_text = """👑 <b>Admin Panel</b>
+
+📋 <b>Premium Management</b>
+├─ <code>/addpremium user_id</code> → Add user to premium
+├─ <code>/removepremium user_id</code> → Remove user from premium
+└─ <code>/listpremium</code> → List all premium users
+
+🌐 <b>Sites Management</b>
+├─ <code>/addsites</code> → Reply to .txt file to upload sites
+└─ <code>/getsites</code> → Download current sites.txt
+
+📊 <b>Bot Statistics</b>
+└─ <code>/stats</code> → Show bot statistics"""
 
     buttons = [[Button.inline(" Back", b"main_menu", style="danger")]]
     
@@ -536,26 +526,22 @@ async def admin_panel_callback(event):
 @bot.on(events.CallbackQuery(data=b"main_menu"))
 async def main_menu_callback(event):
     user_id = event.sender_id
+    is_prem = is_premium(user_id)
     
-    welcome_text = """<b>⚡💳 Welcome to DEVIL CHK ! 💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐂𝐂 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /cc card|mm|yy|cvv - Check single CC
-• /chk - Reply to .txt file to check cards</blockquote>
-<b>⚡💠 𝐒𝐢𝐭𝐞 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /site - Check all sites & remove dead
-• /addsites - Reply to .txt to upload sites
-• /rm url - Remove a specific site</blockquote>
-<b>⚡💠 𝐏𝐫𝐨𝐱𝐲 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /proxy - Check all proxies & remove dead
-• /addproxy - Add proxies (one per line)
-• /chkproxy proxy - Check single proxy
-• /rmproxy proxy - Remove single proxy
-• /rmproxyindex 1,2,3 - Remove by index
-• /clearproxy - Remove all proxies
-• /getproxy - Get all proxies</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚠️ Only premium users can use this bot.</b>"""
+    try:
+        sender = await event.get_sender()
+        username = sender.username if sender.username else "User"
+    except:
+        username = "User"
+    
+    welcome_text = f"""👋 Hey @{username}!
+
+🎁 How to use:
+   ➥ Add proxy: <code>/addproxy</code>
+   ➥ Add sites: <code>/site</code>
+   ➥ Check CC: <code>/cc card|mm|yy|cvv</code>
+
+💡 Made by @AFUONA_V"""
     
     buttons = get_main_menu_keyboard(user_id)
     
@@ -572,7 +558,7 @@ async def single_cc_check(event):
         username = f"user_{user_id}"
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this bot."), parse_mode='html')
         return
 
     sites = load_sites()
@@ -594,45 +580,38 @@ async def single_cc_check(event):
 
     card = cards[0]
 
-    status_msg = await event.reply(
-        premium_emoji(
-            f"<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>\n"
-            f"<b>━━━━━━━━━━━━━━━━━</b>\n"
-            f"<b>⚡💠 𝐂𝐡𝐞𝐜𝐤𝐢𝐧𝐠...</b>\n"
-            f"<blockquote>💳 Card: <code>{card}</code></blockquote>\n"
-            f"<b>━━━━━━━━━━━━━━━━━</b>"
-        ),
-        parse_mode='html'
-    )
+    status_msg = await event.reply(premium_emoji(f"🔄 Checking <code>{card}</code>..."), parse_mode='html')
 
     try:
         result = await check_card_with_retry(card, sites, proxies, max_retries=3)
 
+        brand, bin_type, level, bank, country, flag = await get_bin_info(card.split('|')[0])
+
         if result['status'] == 'Charged':
-            status_emoji = "✅"
-            status_text = "𝐂𝐡𝐚𝐫𝐠𝐞𝐝"
+            status_header = "💎 CHARGED"
         elif result['status'] == 'Approved':
-            status_emoji = "🔥"
-            status_text = "𝐋𝐢𝐯𝐞"
+            status_header = "✅ APPROVED"
         else:
-            status_emoji = "❌"
-            status_text = "𝐃𝐞𝐚𝐝"
+            status_header = "❌ DECLINED"
 
-        final_resp = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐑𝐞𝐬𝐮𝐥𝐭𝐬</b>
-<blockquote>{status_emoji} Status: {status_text}</blockquote>
-<blockquote>💳 Card: <code>{result['card']}</code></blockquote>
-<blockquote>📝 Response: {result['message'][:150]}</blockquote>
-<blockquote>🌐 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 🔥 {result.get('gateway', 'Unknown')} | 💰 {result.get('price', '-')}</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>
+        final_resp = f"""{status_header}
 
-🤖 <b>Bot By: <a href="tg://user?id=1707478010">ㅤㅤ𝐃𝟑𝐯𝟏𝐥_𝐯𝐢𝐩</a></b>"""
+💳 CC <code>{result['card']}</code>
+
+🛒 Gateway {result.get('gateway', 'Unknown')}
+📝 Response {result['message'][:150]}
+💸 Price {result.get('price', '-')}
+
+🆔 BIN Info {brand} - {bin_type} - {level}
+🏦 Bank {bank}
+🥰 Country {country} {flag}
+
+💡 Made by @AFUONA_V"""
 
         await status_msg.edit(premium_emoji(final_resp), parse_mode='html')
 
     except Exception as e:
-        await status_msg.edit(premium_emoji(f"❌ Error checking card: {e}"), parse_mode='html')
+        await status_msg.edit(premium_emoji(f"❌ Error: {e}"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/chk'))
 async def check_command(event):
@@ -645,26 +624,26 @@ async def check_command(event):
         username = f"user_{user_id}"
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("😡 **Access Denied**\n\nOnly premium users can use this bot."))
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this bot."), parse_mode='html')
         return
 
     if not event.reply_to_msg_id:
-        await event.reply(premium_emoji("😡 Please reply to a .txt file containing cards......"))
+        await event.reply(premium_emoji("❌ Please reply to a .txt file containing cards."), parse_mode='html')
         return
 
     reply_msg = await event.get_reply_message()
     if not reply_msg.file or not reply_msg.file.name.endswith('.txt'):
-        await event.reply(premium_emoji("😡 Please reply to a .txt file."))
+        await event.reply(premium_emoji("❌ Please reply to a .txt file."), parse_mode='html')
         return
 
     if not load_sites():
-        await event.reply(premium_emoji("❌ No sites available. Please contact admin."))
+        await event.reply(premium_emoji("❌ No sites available. Please contact admin."), parse_mode='html')
         return
     if not load_proxies():
-        await event.reply(premium_emoji("❌ No proxies available. Please add proxies to proxy.txt."))
+        await event.reply(premium_emoji("❌ No proxies available. Please add proxies."), parse_mode='html')
         return
 
-    status_msg = await event.reply(premium_emoji("🫆 Processing your file..."))
+    status_msg = await event.reply(premium_emoji("🔄 Processing your file..."), parse_mode='html')
 
     file_path = await reply_msg.download_media()
 
@@ -674,18 +653,18 @@ async def check_command(event):
     cards = extract_cc(content)
 
     if not cards:
-        await status_msg.edit(premium_emoji("😡 No valid cards found in file."))
+        await status_msg.edit(premium_emoji("❌ No valid cards found in file."), parse_mode='html')
         os.remove(file_path)
         return
 
     if len(cards) > 5000:
-        await status_msg.edit(premium_emoji(f"🫦 File contains {len(cards)} cards. Limiting to first 5000 cards."))
+        await status_msg.edit(premium_emoji(f"⚠️ File contains {len(cards)} cards. Limiting to first 5000."), parse_mode='html')
         cards = cards[:5000]
 
     os.remove(file_path)
 
     total_cards = len(cards)
-    await status_msg.edit(premium_emoji(f"🫦 Starting check for {total_cards} cards..."))
+    await status_msg.edit(premium_emoji(f"🔥 Starting check for {total_cards} cards..."), parse_mode='html')
 
     session_key = f"{user_id}_{status_msg.id}"
     active_sessions[session_key] = {'paused': False}
@@ -790,7 +769,7 @@ async def check_command(event):
 async def add_proxy_command(event):
     user_id = event.sender_id
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     try:
@@ -808,32 +787,32 @@ async def add_proxy_command(event):
         new_proxies = [p for p in proxies_to_add if p not in current_proxies]
 
         if not new_proxies:
-            await event.reply(premium_emoji("⚠️ All provided proxies already exist in `proxy.txt`."), parse_mode='html')
+            await event.reply(premium_emoji("⚠️ All proxies already exist."), parse_mode='html')
             return
 
         async with aiofiles.open(PROXY_FILE, 'a') as f:
             for proxy in new_proxies:
                 await f.write(f"{proxy}\n")
 
-        await event.reply(premium_emoji(f"✅ <b>Proxies Added Successfully!</b>\n\nAdded {len(new_proxies)} new proxies to `proxy.txt`."), parse_mode='html')
+        await event.reply(premium_emoji(f"✅ Added {len(new_proxies)} proxies!"), parse_mode='html')
 
     except Exception as e:
-        await event.reply(premium_emoji(f"❌ Error adding proxies: {e}"), parse_mode='html')
+        await event.reply(premium_emoji(f"❌ Error: {e}"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/proxy'))
 async def proxy_command(event):
     user_id = event.sender_id
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     proxies = load_proxies()
     if not proxies:
-        await event.reply(premium_emoji("❌ `proxy.txt` is empty. Nothing to check."), parse_mode='html')
+        await event.reply(premium_emoji("❌ proxy.txt is empty."), parse_mode='html')
         return
 
-    status_msg = await event.reply(premium_emoji(f"🔥 Checking {len(proxies)} proxies in batches of 50..."), parse_mode='html')
+    status_msg = await event.reply(premium_emoji(f"🔄 Checking {len(proxies)} proxies..."), parse_mode='html')
 
     alive_proxies = []
     dead_proxies = []
@@ -851,37 +830,23 @@ async def proxy_command(event):
                 else:
                     dead_proxies.append(res['proxy'])
 
-            await status_msg.edit(
-                premium_emoji(
-                    f"🔥 Checking proxies...\n\n"
-                    f"<b>Checked:</b> {min(len(alive_proxies) + len(dead_proxies), len(proxies))}/{len(proxies)}\n"
-                    f"<b>Alive:</b> {len(alive_proxies)}\n"
-                    f"<b>Dead:</b> {len(dead_proxies)}"
-                ),
-                parse_mode='html'
-            )
+            await status_msg.edit(premium_emoji(f"🔄 Checking proxies...\n\nChecked: {len(alive_proxies) + len(dead_proxies)}/{len(proxies)}\nAlive: {len(alive_proxies)}\nDead: {len(dead_proxies)}"), parse_mode='html')
 
         async with aiofiles.open(PROXY_FILE, 'w') as f:
             for proxy in alive_proxies:
                 await f.write(f"{proxy}\n")
 
-        summary_msg = f"✅ <b>Proxy Check Complete!</b>\n\n"
-        summary_msg += f"<b>Total Proxies:</b> {len(proxies)}\n"
-        summary_msg += f"<b>Alive:</b> {len(alive_proxies)}\n"
-        summary_msg += f"<b>Removed:</b> {len(dead_proxies)}\n\n"
-        summary_msg += "<code>proxy.txt</code> has been updated with only working proxies."
-
-        await status_msg.edit(premium_emoji(summary_msg), parse_mode='html')
+        await status_msg.edit(premium_emoji(f"✅ Proxy check complete!\n\nTotal: {len(proxies)}\nAlive: {len(alive_proxies)}\nRemoved: {len(dead_proxies)}"), parse_mode='html')
 
     except Exception as e:
-        await status_msg.edit(premium_emoji(f"❌ An error occurred during proxy check: {e}"), parse_mode='html')
+        await status_msg.edit(premium_emoji(f"❌ Error: {e}"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/chkproxy\s+'))
 async def check_single_proxy(event):
     user_id = event.sender_id
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     proxy = event.message.text.split(' ', 1)[1].strip()
@@ -895,19 +860,19 @@ async def check_single_proxy(event):
         result = await test_proxy(proxy)
 
         if result['status'] == 'alive':
-            await status_msg.edit(premium_emoji(f"✅ <b>Proxy is ALIVE!</b>\n\n<code>{proxy}</code>"), parse_mode='html')
+            await status_msg.edit(premium_emoji(f"✅ Proxy is ALIVE!\n\n<code>{proxy}</code>"), parse_mode='html')
         else:
-            await status_msg.edit(premium_emoji(f"❌ <b>Proxy is DEAD!</b>\n\n<code>{proxy}</code>"), parse_mode='html')
+            await status_msg.edit(premium_emoji(f"❌ Proxy is DEAD!\n\n<code>{proxy}</code>"), parse_mode='html')
 
     except Exception as e:
-        await status_msg.edit(premium_emoji(f"❌ Error checking proxy: {e}"), parse_mode='html')
+        await status_msg.edit(premium_emoji(f"❌ Error: {e}"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/rmproxy\s+'))
 async def remove_single_proxy(event):
     user_id = event.sender_id
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     proxy_to_remove = event.message.text.split(' ', 1)[1].strip()
@@ -927,14 +892,14 @@ async def remove_single_proxy(event):
         for proxy in new_proxies:
             await f.write(f"{proxy}\n")
 
-    await event.reply(premium_emoji(f"✅ <b>Proxy Removed!</b>\n\n<code>{proxy_to_remove}</code>"), parse_mode='html')
+    await event.reply(premium_emoji(f"✅ Proxy removed!\n\n<code>{proxy_to_remove}</code>"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/rmproxyindex\s+'))
 async def remove_proxy_by_index(event):
     user_id = event.sender_id
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     indices_str = event.message.text.split(' ', 1)[1].strip()
@@ -971,21 +936,21 @@ async def remove_proxy_by_index(event):
             await f.write(f"{proxy}\n")
 
     removed_text = "\n".join(removed[:10])
-    await event.reply(premium_emoji(f"✅ <b>Removed {len(removed)} proxies!</b>\n\nRemoved:\n<code>{removed_text}</code>"), parse_mode='html')
+    await event.reply(premium_emoji(f"✅ Removed {len(removed)} proxies!\n\nRemoved:\n<code>{removed_text}</code>"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/clearproxy'))
 async def clear_all_proxies(event):
     user_id = event.sender_id
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     current_proxies = load_proxies()
     count = len(current_proxies)
 
     if count == 0:
-        await event.reply(premium_emoji("❌ <code>proxy.txt</code> is already empty."), parse_mode='html')
+        await event.reply(premium_emoji("❌ proxy.txt is already empty."), parse_mode='html')
         return
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -996,14 +961,7 @@ async def clear_all_proxies(event):
             for proxy in current_proxies:
                 await f.write(f"{proxy}\n")
 
-        await event.reply(
-            premium_emoji(
-                f"📦 <b>Backup Created!</b>\n\n"
-                f"Sending backup of {count} proxies before clearing..."
-            ),
-            file=backup_filename,
-            parse_mode='html'
-        )
+        await event.reply(premium_emoji(f"📦 Backup created!\n\nSending backup of {count} proxies..."), file=backup_filename, parse_mode='html')
 
         try:
             os.remove(backup_filename)
@@ -1017,25 +975,25 @@ async def clear_all_proxies(event):
     async with aiofiles.open(PROXY_FILE, 'w') as f:
         await f.write("")
 
-    await event.reply(premium_emoji(f"✅ <b>Cleared all {count} proxies!</b>\n\n<code>proxy.txt</code> is now empty."), parse_mode='html')
+    await event.reply(premium_emoji(f"✅ Cleared all {count} proxies!\n\nproxy.txt is now empty."), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/getproxy'))
 async def get_all_proxies(event):
     user_id = event.sender_id
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     current_proxies = load_proxies()
 
     if not current_proxies:
-        await event.reply(premium_emoji("❌ No proxies in <code>proxy.txt</code>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ No proxies in proxy.txt"), parse_mode='html')
         return
 
     if len(current_proxies) <= 50:
         proxy_list = "\n".join([f"{i+1}. <code>{p}</code>" for i, p in enumerate(current_proxies)])
-        await event.reply(premium_emoji(f"<b>📋 All Proxies ({len(current_proxies)}):</b>\n\n{proxy_list}"), parse_mode='html')
+        await event.reply(premium_emoji(f"📋 All Proxies ({len(current_proxies)}):\n\n{proxy_list}"), parse_mode='html')
     else:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"proxies_{user_id}_{timestamp}.txt"
@@ -1044,7 +1002,7 @@ async def get_all_proxies(event):
             for i, proxy in enumerate(current_proxies):
                 await f.write(f"{i+1}. {proxy}\n")
 
-        await event.reply(premium_emoji(f"<b>📋 All Proxies ({len(current_proxies)}):</b>\n\nFile attached below."), file=filename, parse_mode='html')
+        await event.reply(premium_emoji(f"📋 All Proxies ({len(current_proxies)}):\n\nFile attached below."), file=filename, parse_mode='html')
 
         try:
             os.remove(filename)
@@ -1056,20 +1014,20 @@ async def site_command(event):
     user_id = event.sender_id
 
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     sites = load_sites()
     if not sites:
-        await event.reply(premium_emoji("❌ `sites.txt` is empty. Nothing to check."), parse_mode='html')
+        await event.reply(premium_emoji("❌ sites.txt is empty."), parse_mode='html')
         return
 
     proxies = load_proxies()
     if not proxies:
-        await event.reply(premium_emoji("❌ No proxies available. Please add proxies to proxy.txt."), parse_mode='html')
+        await event.reply(premium_emoji("❌ No proxies available."), parse_mode='html')
         return
 
-    status_msg = await event.reply(premium_emoji(f"🔥 Checking {len(sites)} sites..."), parse_mode='html')
+    status_msg = await event.reply(premium_emoji(f"🔄 Checking {len(sites)} sites..."), parse_mode='html')
 
     alive_sites = []
     dead_sites = []
@@ -1091,36 +1049,22 @@ async def site_command(event):
                 else:
                     dead_sites.append(res['site'])
 
-            await status_msg.edit(
-                premium_emoji(
-                    f"🔥 Checking sites...\n\n"
-                    f"<b>Checked:</b> {len(alive_sites) + len(dead_sites)}/{len(sites)}\n"
-                    f"<b>Alive:</b> {len(alive_sites)}\n"
-                    f"<b>Dead:</b> {len(dead_sites)}"
-                ),
-                parse_mode='html'
-            )
+            await status_msg.edit(premium_emoji(f"🔄 Checking sites...\n\nChecked: {len(alive_sites) + len(dead_sites)}/{len(sites)}\nAlive: {len(alive_sites)}\nDead: {len(dead_sites)}"), parse_mode='html')
 
         async with aiofiles.open(SITES_FILE, 'w') as f:
             for site in alive_sites:
                 await f.write(f"{site}\n")
 
-        summary_msg = f"✅ **Site Check Complete!**\n\n"
-        summary_msg += f"**Total Sites:** {len(sites)}\n"
-        summary_msg += f"**Alive:** {len(alive_sites)}\n"
-        summary_msg += f"**Removed:** {len(dead_sites)}\n\n"
-        summary_msg += "`sites.txt` has been updated."
-
-        await status_msg.edit(premium_emoji(summary_msg), parse_mode='html')
+        await status_msg.edit(premium_emoji(f"✅ Site check complete!\n\nTotal: {len(sites)}\nAlive: {len(alive_sites)}\nRemoved: {len(dead_sites)}"), parse_mode='html')
 
     except Exception as e:
-        await status_msg.edit(premium_emoji(f"❌ An error occurred during site check: {e}"), parse_mode='html')
+        await status_msg.edit(premium_emoji(f"❌ Error: {e}"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/rm\s+'))
 async def remove_site_command(event):
     user_id = event.sender_id
     if not is_premium(user_id):
-        await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied\n\nOnly premium users can use this."), parse_mode='html')
         return
 
     try:
@@ -1132,7 +1076,7 @@ async def remove_site_command(event):
         current_sites = load_sites()
 
         if url_to_remove not in current_sites:
-            await event.reply(premium_emoji(f"❌ Site not found in list: <code>{url_to_remove}</code>"), parse_mode='html')
+            await event.reply(premium_emoji(f"❌ Site not found: <code>{url_to_remove}</code>"), parse_mode='html')
             return
 
         new_sites = [site for site in current_sites if site != url_to_remove]
@@ -1141,18 +1085,18 @@ async def remove_site_command(event):
             for site in new_sites:
                 await f.write(f"{site}\n")
 
-        await event.reply(premium_emoji(f"✅ <b>Site Removed Successfully!</b>\n\n<code>{url_to_remove}</code> has been deleted from `sites.txt`."), parse_mode='html')
+        await event.reply(premium_emoji(f"✅ Site removed!\n\n<code>{url_to_remove}</code>"), parse_mode='html')
 
     except Exception as e:
-        await event.reply(premium_emoji(f"❌ Error removing site: {e}"), parse_mode='html')
+        await event.reply(premium_emoji(f"❌ Error: {e}"), parse_mode='html')
         
         
 @bot.on(events.NewMessage(pattern='/addsites'))
-async def addsites_command(event):
+async def add_sites_command(event):
     user_id = event.sender_id
     
     if user_id not in ADMIN_ID:
-        await event.reply(premium_emoji("<b>❌ Access Denied. Admin only.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied. Admin only."), parse_mode='html')
         return
     
     if not event.reply_to_msg_id:
@@ -1179,7 +1123,7 @@ async def addsites_command(event):
             await status_msg.edit(premium_emoji("❌ No valid sites found in file."), parse_mode='html')
             return
         
-        await status_msg.edit(premium_emoji(f"🔥 Checking {len(sites)} sites before adding..."), parse_mode='html')
+        await status_msg.edit(premium_emoji(f"🔄 Checking {len(sites)} sites before adding..."), parse_mode='html')
         
         proxies = load_proxies()
         if not proxies:
@@ -1201,27 +1145,20 @@ async def addsites_command(event):
                 else:
                     dead_sites.append(res['site'])
             
-            await status_msg.edit(
-                premium_emoji(
-                    f"🔥 Checking sites...\n\n"
-                    f"<b>Checked:</b> {len(alive_sites) + len(dead_sites)}/{len(sites)}\n"
-                    f"<b>Alive:</b> {len(alive_sites)}\n"
-                    f"<b>Dead:</b> {len(dead_sites)}"
-                ),
-                parse_mode='html'
-            )
+            await status_msg.edit(premium_emoji(f"🔄 Checking sites...\n\nChecked: {len(alive_sites) + len(dead_sites)}/{len(sites)}\n✅ Alive: {len(alive_sites)}\n❌ Dead: {len(dead_sites)}"), parse_mode='html')
         
         async with aiofiles.open(SITES_FILE, 'w') as f:
             for site in alive_sites:
                 await f.write(f"{site}\n")
         
-        result_text = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 Sites updated successfully!</b>
-<blockquote>📊 Total received: {len(sites)}</blockquote>
-<blockquote>✅ Alive (added): {len(alive_sites)}</blockquote>
-<blockquote>❌ Dead (ignored): {len(dead_sites)}</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>"""
+        result_text = f"""✅ <b>Sites updated successfully!</b>
+
+📊 Total sites received: {len(sites)}
+✅ Alive (added): {len(alive_sites)}
+❌ Dead (ignored): {len(dead_sites)}
+
+🌐 <b>Added sites:</b>
+{chr(10).join([f"• {s}" for s in alive_sites[:5]])}{'...' if len(alive_sites) > 5 else ''}"""
 
         await status_msg.edit(premium_emoji(result_text), parse_mode='html')
         
@@ -1234,7 +1171,7 @@ async def add_premium_command(event):
     user_id = event.sender_id
     
     if user_id not in ADMIN_ID:
-        await event.reply(premium_emoji("<b>❌ Access Denied. Admin only.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied. Admin only."), parse_mode='html')
         return
     
     try:
@@ -1246,7 +1183,7 @@ async def add_premium_command(event):
         target_id = int(parts[1])
         
         if await add_premium_user(target_id):
-            await event.reply(premium_emoji(f"✅ <b>User Added!</b>\n\n<code>{target_id}</code> is now premium."), parse_mode='html')
+            await event.reply(premium_emoji(f"✅ User <code>{target_id}</code> added to premium!"), parse_mode='html')
             try:
                 await bot.send_message(target_id, premium_emoji("🎉 Congratulations! You have been granted premium access to the bot!"), parse_mode='html')
             except:
@@ -1264,7 +1201,7 @@ async def remove_premium_command(event):
     user_id = event.sender_id
     
     if user_id not in ADMIN_ID:
-        await event.reply(premium_emoji("<b>❌ Access Denied. Admin only.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied. Admin only."), parse_mode='html')
         return
     
     try:
@@ -1280,7 +1217,7 @@ async def remove_premium_command(event):
             return
         
         if await remove_premium_user(target_id):
-            await event.reply(premium_emoji(f"✅ <b>User Removed!</b>\n\n<code>{target_id}</code> removed from premium."), parse_mode='html')
+            await event.reply(premium_emoji(f"✅ User <code>{target_id}</code> removed from premium."), parse_mode='html')
             try:
                 await bot.send_message(target_id, premium_emoji("⚠️ Your premium access has been revoked."), parse_mode='html')
             except:
@@ -1298,7 +1235,7 @@ async def list_premium_command(event):
     user_id = event.sender_id
     
     if user_id not in ADMIN_ID:
-        await event.reply(premium_emoji("<b>❌ Access Denied. Admin only.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied. Admin only."), parse_mode='html')
         return
     
     premium_users = load_premium_users()
@@ -1309,28 +1246,27 @@ async def list_premium_command(event):
     
     premium_list = "\n".join([f"• <code>{uid}</code>" for uid in premium_users])
     
-    await event.reply(premium_emoji(f"<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>\n<b>━━━━━━━━━━━━━━━━━</b>\n<b>⚡💠 Premium Users ({len(premium_users)})</b>\n<blockquote>{premium_list}</blockquote>\n<b>━━━━━━━━━━━━━━━━━</b>"), parse_mode='html')
+    await event.reply(premium_emoji(f"👑 <b>Premium Users ({len(premium_users)})</b>\n\n{premium_list}"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/stats'))
 async def stats_command(event):
     user_id = event.sender_id
     
     if user_id not in ADMIN_ID:
-        await event.reply(premium_emoji("<b>❌ Access Denied. Admin only.</b>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ Access Denied. Admin only."), parse_mode='html')
         return
     
     premium_users = load_premium_users()
     sites = load_sites()
     proxies = load_proxies()
     
-    stats_text = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
-<b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 Bot Statistics</b>
-<blockquote>👑 Admins: {len(ADMIN_ID)}</blockquote>
-<blockquote>💎 Premium Users: {len(premium_users)}</blockquote>
-<blockquote>🌐 Sites: {len(sites)}</blockquote>
-<blockquote>🔌 Proxies: {len(proxies)}</blockquote>
-<b>━━━━━━━━━━━━━━━━━</b>
+    stats_text = f"""📊 <b>Bot Statistics</b>
+
+👑 <b>Admins:</b> {len(ADMIN_ID)}
+💎 <b>Premium Users:</b> {len(premium_users)}
+🌐 <b>Sites:</b> {len(sites)}
+🔌 <b>Proxies:</b> {len(proxies)}
+
 🤖 <b>Bot Status:</b> Running ✅"""
     
     await event.reply(premium_emoji(stats_text), parse_mode='html')
@@ -1344,7 +1280,7 @@ async def stop_handler(event):
     if session_key in active_sessions:
         del active_sessions[session_key]
         await event.answer(" Stopped", alert=True)
-        await event.edit(premium_emoji("😡 **Checking stopped by user.**"), parse_mode='html')
+        await event.edit(premium_emoji("🛑 Checking stopped by user."), parse_mode='html')
 
 print("✅ Bot started successfully!")
 bot.run_until_disconnected()
