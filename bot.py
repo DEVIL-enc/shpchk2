@@ -9,10 +9,10 @@ import json
 import re
 from datetime import datetime
 
-API_ID = 111111111
-API_HASH = '111111111'
-BOT_TOKEN = '8978049174:'
-ADMIN_ID = [111111]
+API_ID = 39825025
+API_HASH = '47170fd9a11b3f591bbc56849519f0f8'
+BOT_TOKEN = '8827673793:AAHKJphZzbQwOKBZS2pHLTDekPvYUrsJT6Y'
+ADMIN_ID = [1707478010]
 CHECKER_API_URL = 'https://afuonax.up.railway.app/shopify_parallel'
 
 PREMIUM_USERS_FILE = "premium_users.txt"
