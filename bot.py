@@ -454,18 +454,10 @@ async def start(event):
 <b>⚡💠 𝐂𝐂 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
 <blockquote>• /cc card|mm|yy|cvv - Check single CC
 • /chk - Reply to .txt file to check cards</blockquote>
-<b>⚡💠 𝐒𝐢𝐭𝐞 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /site - Check all sites & remove dead
-• /addsites - Reply to .txt to upload sites
-• /rm url - Remove a specific site</blockquote>
 <b>⚡💠 𝐏𝐫𝐨𝐱𝐲 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
 <blockquote>• /proxy - Check all proxies & remove dead
 • /addproxy - Add proxies (one per line)
-• /chkproxy proxy - Check single proxy
-• /rmproxy proxy - Remove single proxy
-• /rmproxyindex 1,2,3 - Remove by index
 • /clearproxy - Remove all proxies
-• /getproxy - Get all proxies</blockquote>
 <b>━━━━━━━━━━━━━━━━━</b>
 <b>⚠️ Only premium users can use this bot.</b>"""
     
@@ -480,18 +472,10 @@ async def show_commands_callback(event):
 <b>⚡💠 𝐂𝐂 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
 <blockquote>• /cc card|mm|yy|cvv - Check single CC
 • /chk - Reply to .txt file to check cards</blockquote>
-<b>⚡💠 𝐒𝐢𝐭𝐞 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /site - Check all sites & remove dead
-• /addsites - Reply to .txt to upload sites
-• /rm url - Remove a specific site</blockquote>
 <b>⚡💠 𝐏𝐫𝐨𝐱𝐲 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
 <blockquote>• /proxy - Check all proxies & remove dead
 • /addproxy - Add proxies (one per line)
-• /chkproxy proxy - Check single proxy
-• /rmproxy proxy - Remove single proxy
-• /rmproxyindex 1,2,3 - Remove by index
 • /clearproxy - Remove all proxies
-• /getproxy - Get all proxies</blockquote>
 <b>━━━━━━━━━━━━━━━━━</b>
 <b>⚠️ Only premium users can use this bot.</b>"""
     
@@ -530,18 +514,10 @@ async def main_menu_callback(event):
 <b>⚡💠 𝐂𝐂 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
 <blockquote>• /cc card|mm|yy|cvv - Check single CC
 • /chk - Reply to .txt file to check cards</blockquote>
-<b>⚡💠 𝐒𝐢𝐭𝐞 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
-<blockquote>• /site - Check all sites & remove dead
-• /addsites - Reply to .txt to upload sites
-• /rm url - Remove a specific site</blockquote>
 <b>⚡💠 𝐏𝐫𝐨𝐱𝐲 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬</b>
 <blockquote>• /proxy - Check all proxies & remove dead
 • /addproxy - Add proxies (one per line)
-• /chkproxy proxy - Check single proxy
-• /rmproxy proxy - Remove single proxy
-• /rmproxyindex 1,2,3 - Remove by index
 • /clearproxy - Remove all proxies
-• /getproxy - Get all proxies</blockquote>
 <b>━━━━━━━━━━━━━━━━━</b>
 <b>⚠️ Only premium users can use this bot.</b>"""
     
