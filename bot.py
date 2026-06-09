@@ -194,15 +194,24 @@ async def check_card(card, site, proxy):
         if not site.startswith('http'):
             site = f'https://{site}'
 
-        # 2. تحويل البروكسي إلى الصيغة التي يطلبها الـ API الجديد (http://...)
+        # 2. تجهيز البروكسي بالصيغة الصحيحة بدون تضارب
         proxy_str = None
         if proxy:
             proxy_clean = proxy.strip()
+            
+            # إذا كان البروكسي يحتوي على يوزر وباسورد ip:port:user:pass
             if len(proxy_clean.split(':')) == 4:
                 p_parts = proxy_clean.split(':')
+                # صيغة القياسية للبروكسي بيوزر وباسورد
                 proxy_str = f"http://{p_parts[2]}:{p_parts[3]}@{p_parts[0]}:{p_parts[1]}"
+            
+            # إذا كان البروكسي عبارة عن ip:port فقط
             elif len(proxy_clean.split(':')) == 2:
-                proxy_str = f"http://{proxy_clean}"
+                # نرسله كـ http://ip:port
+                if not proxy_clean.startswith('http'):
+                    proxy_str = f"http://{proxy_clean}"
+                else:
+                    proxy_str = proxy_clean
             else:
                 proxy_str = proxy_clean
 
@@ -211,6 +220,8 @@ async def check_card(card, site, proxy):
             'site': site,
             'cc': clean_card
         }
+        
+        # إذا تم تجهيز البروكسي نضيفه للـ params
         if proxy_str:
             params['proxy'] = proxy_str
 
@@ -225,7 +236,7 @@ async def check_card(card, site, proxy):
 
                 raw = await resp.json(content_type=None)
 
-        # 5. تحليل الرد (دعم الحروف الكبيرة والصغيرة في الـ API)
+        # 5. تحليل الرد
         response_msg = raw.get('Response', raw.get('response', ''))
         price = raw.get('Price', raw.get('price', '-'))
         if price != '-' and price != 0:
@@ -246,6 +257,7 @@ async def check_card(card, site, proxy):
 
     except Exception as e:
         return {'status': 'Dead', 'message': str(e), 'card': card, 'gateway': 'Unknown', 'price': '-'}
+
 
 
 
