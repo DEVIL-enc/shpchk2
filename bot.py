@@ -232,7 +232,7 @@ async def check_card(card, site, proxy):
 
         response_lower = response_msg.lower()
 
-        if 'charged' in response_lower or 'order_placed' in response_lower or 'thank you' in response_lower or 'payment successful' in response_lower:
+        if 'charged' in response_lower or 'order_placed' in response_lower or 'order_paid' in response_lower or 'thank you' in response_lower or 'payment successful' in response_lower:
             return {'status': 'Charged', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
         elif any(key in response_lower for key in ['approved', 'success', 'insufficient', 'cvv', 'incorrect', '3d', 'verification', 'authenticate', 'verify']):
             return {'status': 'Approved', 'message': response_msg, 'card': card, 'site': site, 'gateway': gateway, 'price': price}
