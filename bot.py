@@ -15,7 +15,7 @@ BOT_TOKEN = '8827673793:AAHFpHDHGCwBpn2MpQf61G4N-1ebDz1bFSw'
 ADMIN_ID = [1707478010]
 
 # الـ API الجديد الخاص بك (يجب تغيير IP_YOUR_SERVER إلى الآيبي الفعلي الخاص بسيرفرك)
-CHECKER_API_URL = 'http://187.77.70.6:5001/shopify'
+CHECKER_API_URL = 'http://187.77.70.6:8080/shopify'
 
 PREMIUM_USERS_FILE = "premium_users.txt"
 SITES_FILE = 'sites.txt'
